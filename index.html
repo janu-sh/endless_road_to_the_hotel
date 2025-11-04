@@ -99,9 +99,17 @@
                 key: 'player_duck',
                 url: 'https://placehold.co/60x50/fde047/333?text=HERO+DUCK'
             },
-            BACKGROUND: { 
-                key: 'background', 
-                url: 'https://placehold.co/1200x600/22c55e/FFF?text=SCROLLING+LANDSCAPE' 
+            BACKGROUND_FAR: { 
+                key: 'background_far', 
+                url: 'https://placehold.co/1200x600/0ea5e9/FFF?text=SKY+MOUNTAINS' 
+            },
+            BACKGROUND_MID: { 
+                key: 'background_mid', 
+                url: 'https://placehold.co/1200x600/14b8a6/FFF?text=DISTANT+TREES' 
+            },
+            BACKGROUND_NEAR: { 
+                key: 'background_near', 
+                url: 'https://placehold.co/1200x600/22c55e/FFF?text=GROUND+LAYER' 
             },
             OBSTACLE_SMALL: { 
                 key: 'obstacle_small', 
@@ -169,7 +177,9 @@
                 // Load placeholder images
                 this.load.image(ASSETS.PLAYER.key, ASSETS.PLAYER.url);
                 this.load.image(ASSETS.PLAYER_DUCK.key, ASSETS.PLAYER_DUCK.url);
-                this.load.image(ASSETS.BACKGROUND.key, ASSETS.BACKGROUND.url);
+                this.load.image(ASSETS.BACKGROUND_FAR.key, ASSETS.BACKGROUND_FAR.url);
+                this.load.image(ASSETS.BACKGROUND_MID.key, ASSETS.BACKGROUND_MID.url);
+                this.load.image(ASSETS.BACKGROUND_NEAR.key, ASSETS.BACKGROUND_NEAR.url);
                 this.load.image(ASSETS.OBSTACLE_SMALL.key, ASSETS.OBSTACLE_SMALL.url);
                 this.load.image(ASSETS.OBSTACLE_LARGE.key, ASSETS.OBSTACLE_LARGE.url);
                 this.load.image(ASSETS.OBSTACLE_FLYING.key, ASSETS.OBSTACLE_FLYING.url);
@@ -243,11 +253,21 @@
 
             create() {
                 console.log('GameScene: create');
-                // --- Scrolling Background (Section 4.3) ---
-                // A TileSprite is Phaser's built-in object for scrolling backgrounds
-                this.background = this.add.tileSprite(0, 0, GAME_WIDTH, GAME_HEIGHT, ASSETS.BACKGROUND.key)
+                // --- Parallax Scrolling Backgrounds (Section 4.3) ---
+                // Multiple layers create depth through different scroll speeds
+                this.backgroundFar = this.add.tileSprite(0, 0, GAME_WIDTH, GAME_HEIGHT, ASSETS.BACKGROUND_FAR.key)
                     .setOrigin(0, 0)
-                    .setScrollFactor(0); // Stays fixed relative to camera
+                    .setScrollFactor(0)
+                    .setAlpha(0.8); // Slightly transparent for depth
+                
+                this.backgroundMid = this.add.tileSprite(0, 0, GAME_WIDTH, GAME_HEIGHT, ASSETS.BACKGROUND_MID.key)
+                    .setOrigin(0, 0)
+                    .setScrollFactor(0)
+                    .setAlpha(0.9);
+                
+                this.backgroundNear = this.add.tileSprite(0, 0, GAME_WIDTH, GAME_HEIGHT, ASSETS.BACKGROUND_NEAR.key)
+                    .setOrigin(0, 0)
+                    .setScrollFactor(0);
 
                 // --- Invisible Ground ---
                 // We create a static, invisible physics body for the ground
@@ -429,9 +449,11 @@
                     return;
                 }
 
-                // --- Scrolling Background (Section 4.3) ---
-                // Scroll at half the game speed for a parallax effect
-                this.background.tilePositionX += (this.gameSpeed / 2);
+                // --- Parallax Scrolling Backgrounds (Section 4.3) ---
+                // Each layer scrolls at different speed for depth effect
+                this.backgroundFar.tilePositionX += (this.gameSpeed * 0.2);   // Slowest - farthest away
+                this.backgroundMid.tilePositionX += (this.gameSpeed * 0.5);   // Medium speed
+                this.backgroundNear.tilePositionX += (this.gameSpeed * 0.8);  // Fastest - closest to camera
 
                 // --- Update Obstacles ---
                 // Move all obstacles in the group to the left
