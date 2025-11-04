@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Blocky Runner</title>
+    <title>Endless Road to the Hotel</title>
     
     <!-- 
       SECTION 3.1: VISUAL & THEMATIC DESIGN (FONT)
@@ -113,7 +113,7 @@
             },
             OBSTACLE_FLYING: {
                 key: 'obstacle_flying',
-                url: 'https://placehold.co/70x50/eab308/FFF?text=FLYER'
+                url: 'https://placehold.co/70x150/eab308/FFF?text=FLYER'
             }
         };
 
@@ -136,7 +136,7 @@
         const FLYING_OBSTACLE_CONFIGS = [
             {
                 key: ASSETS.OBSTACLE_FLYING.key,
-                hitbox: { width: 65, height: 45 }
+                hitbox: { width: 70, height: 150 }
             }
         ];
 
@@ -347,10 +347,10 @@
                     const config = Phaser.Math.RND.pick(FLYING_OBSTACLE_CONFIGS);
 
                     // Spawn at a height the player must duck under
-                    const spawnY = GROUND_Y - 70; // 70px above ground, adjust as needed
+                    const spawnY = GROUND_Y - 45; // 45px above ground
 
                     const obstacle = this.obstacleGroup.create(GAME_WIDTH + 100, spawnY, config.key)
-                        .setOrigin(0.5, 0.5) // Anchor to center
+                        .setOrigin(0.5, 1) // Anchor to bottom-center
                         .refreshBody();
 
                     // Set custom hitbox
