@@ -112,6 +112,14 @@
                 key: 'player_duck',
                 url: 'https://placehold.co/60x50/fde047/333?text=HERO+DUCK'
             },
+            SIDEKICK: {
+                key: 'sidekick',
+                url: 'https://placehold.co/60x80/a78bfa/333?text=SIDE'
+            },
+            SIDEKICK_DUCK: {
+                key: 'sidekick_duck',
+                url: 'https://placehold.co/60x50/a78bfa/333?text=SIDE+DUCK'
+            },
             BACKGROUND_FAR: { 
                 key: 'background_far', 
                 url: 'https://placehold.co/1200x600/0ea5e9/FFF?text=SKY+MOUNTAINS' 
@@ -190,6 +198,8 @@
                 // Load placeholder images
                 this.load.image(ASSETS.PLAYER.key, ASSETS.PLAYER.url);
                 this.load.image(ASSETS.PLAYER_DUCK.key, ASSETS.PLAYER_DUCK.url);
+                this.load.image(ASSETS.SIDEKICK.key, ASSETS.SIDEKICK.url);
+                this.load.image(ASSETS.SIDEKICK_DUCK.key, ASSETS.SIDEKICK_DUCK.url);
                 this.load.image(ASSETS.BACKGROUND_FAR.key, ASSETS.BACKGROUND_FAR.url);
                 this.load.image(ASSETS.BACKGROUND_MID.key, ASSETS.BACKGROUND_MID.url);
                 this.load.image(ASSETS.BACKGROUND_NEAR.key, ASSETS.BACKGROUND_NEAR.url);
@@ -263,6 +273,9 @@
                 this.isGameOver = false;
                 this.playerIsDucking = false;
                 this.currentZoom = INITIAL_ZOOM;
+                
+                // Action queue for sidekicks to mirror hero's actions
+                this.actionQueue = [];
             }
 
             create() {
@@ -300,6 +313,32 @@
 
                 // Add collider between player and ground
                 this.physics.add.collider(this.player, this.ground);
+
+                // --- Sidekicks (positioned to the left of hero) ---
+                this.sidekicks = [];
+                const sidekickOffsets = [-80, -160]; // X offsets from player
+                const sidekickDelays = [300, 600]; // Delays in milliseconds
+                
+                for (let i = 0; i < 2; i++) {
+                    // Use regular sprites (not physics sprites) since they just mirror visually
+                    const sidekick = this.add.sprite(
+                        PLAYER_INITIAL_X + sidekickOffsets[i], 
+                        GROUND_Y, 
+                        ASSETS.SIDEKICK.key
+                    )
+                        .setOrigin(0.5, 1)
+                        .setAlpha(0.8); // Slightly transparent to distinguish from hero
+                    
+                    this.sidekicks.push({
+                        sprite: sidekick,
+                        delay: sidekickDelays[i],
+                        isDucking: false,
+                        isJumping: false,
+                        jumpStartY: GROUND_Y,
+                        jumpVelocity: 0,
+                        xOffset: sidekickOffsets[i]
+                    });
+                }
 
                 // --- Boss Character (starts on right side, moves left) ---
                 const bossX = BOSS_INITIAL_X; // Starting position on right side
@@ -364,6 +403,12 @@
                 // Only jump if touching the ground
                 if (this.player.body.touching.down) {
                     this.player.setVelocityY(PLAYER_JUMP_VELOCITY);
+                    
+                    // Record action for sidekicks
+                    this.actionQueue.push({
+                        type: 'jump',
+                        time: this.time.now
+                    });
                 }
             }
 
@@ -378,6 +423,12 @@
                 // to keep the body aligned with the bottom of the sprite.
                 // Note: The physics body is aligned to the *new* sprite.
                 this.player.body.setSize(50, 40).setOffset(5, 10);
+                
+                // Record action for sidekicks
+                this.actionQueue.push({
+                    type: 'duck',
+                    time: this.time.now
+                });
             }
 
             standUp() {
@@ -388,6 +439,12 @@
                 
                 // Restore original hitbox
                 this.player.body.setSize(50, 70).setOffset(5, 10);
+                
+                // Record action for sidekicks
+                this.actionQueue.push({
+                    type: 'standup',
+                    time: this.time.now
+                });
             }
 
             spawnObstacle() {
@@ -496,6 +553,58 @@
                 const playerProgressRatio = Math.min(1, this.score * PLAYER_MOVEMENT_SPEED); // 0 to 1 over time
                 const playerTargetX = PLAYER_INITIAL_X + (PLAYER_TARGET_X - PLAYER_INITIAL_X) * playerProgressRatio;
                 this.player.x = playerTargetX;
+                
+                // --- Update Sidekicks ---
+                // Process action queue for each sidekick
+                this.sidekicks.forEach((sidekick, sidekickIndex) => {
+                    // Keep sidekick positioned relative to player
+                    sidekick.sprite.x = this.player.x + sidekick.xOffset;
+                    
+                    // Manual jump physics for visual-only sprites
+                    if (sidekick.isJumping) {
+                        sidekick.jumpVelocity += GRAVITY * (delta / 1000);
+                        sidekick.sprite.y += sidekick.jumpVelocity * (delta / 1000);
+                        
+                        // Land on ground
+                        if (sidekick.sprite.y >= GROUND_Y) {
+                            sidekick.sprite.y = GROUND_Y;
+                            sidekick.isJumping = false;
+                            sidekick.jumpVelocity = 0;
+                        }
+                    }
+                    
+                    // Process actions with delay
+                    this.actionQueue.forEach(action => {
+                        const timeSinceAction = this.time.now - action.time;
+                        
+                        // Initialize processed array if it doesn't exist
+                        if (!action.processedBy) {
+                            action.processedBy = [];
+                        }
+                        
+                        // Check if it's time for this sidekick to perform the action
+                        // and if it hasn't been processed yet by this sidekick
+                        if (timeSinceAction >= sidekick.delay && !action.processedBy.includes(sidekickIndex)) {
+                            action.processedBy.push(sidekickIndex);
+                            
+                            if (action.type === 'jump' && !sidekick.isJumping) {
+                                sidekick.isJumping = true;
+                                sidekick.jumpVelocity = PLAYER_JUMP_VELOCITY;
+                            } else if (action.type === 'duck' && !sidekick.isDucking) {
+                                sidekick.isDucking = true;
+                                sidekick.sprite.setTexture(ASSETS.SIDEKICK_DUCK.key);
+                            } else if (action.type === 'standup' && sidekick.isDucking) {
+                                sidekick.isDucking = false;
+                                sidekick.sprite.setTexture(ASSETS.SIDEKICK.key);
+                            }
+                        }
+                    });
+                });
+                
+                // Clean up old actions (older than 1 second)
+                this.actionQueue = this.actionQueue.filter(action => {
+                    return this.time.now - action.time < 1000;
+                });
                 
                 // Move boss slowly towards player (in world space) for dramatic "closing the gap" effect
                 const bossProgressRatio = Math.min(1, this.score * BOSS_MOVEMENT_SPEED); // 0 to 1 over time
