@@ -1,0 +1,599 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Blocky Runner</title>
+    
+    <!-- 
+      SECTION 3.1: VISUAL & THEMATIC DESIGN (FONT)
+      Import the 'Luckiest Guy' font from Google Fonts.
+    -->
+    <link href="https://fonts.googleapis.com/css2?family=Luckiest+Guy&display=swap" rel="stylesheet">
+    
+    <style>
+        /* CSS from Section 2 (Technology) and 3 (Theme)
+        */
+        @font-face {
+            font-family: 'Luckiest Guy';
+            src: url('https://fonts.gstatic.com/s/luckiestguy/v18/K2FufimYLv0A-h2eYEE-6A.woff2') format('woff2');
+            font-display: swap;
+        }
+
+        body {
+            margin: 0;
+            padding: 0;
+            background-color: #333; /* Dark background to contrast the game */
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            width: 100vw;
+            height: 100vh;
+            font-family: 'Luckiest Guy', sans-serif;
+            overflow: hidden;
+        }
+
+        #game-container {
+            width: 1000px;
+            max-width: 100%;
+            height: 600px;
+            border-radius: 12px;
+            overflow: hidden;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+            
+            /* This class is added by the WebFontLoader (in BootScene) 
+              to prevent the game from showing with the wrong font (FOUT).
+            */
+            visibility: hidden;
+        }
+
+        #game-container.font-loaded {
+            visibility: visible;
+        }
+
+        canvas {
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
+        }
+    </style>
+
+    <!-- Load the Phaser 3 Library -->
+    <script src="https://cdn.jsdelivr.net/npm/phaser@3.80.1/dist/phaser.min.js"></script>
+    
+    <!-- Load the WebFontLoader to safely load our custom font -->
+    <script src="https://ajax.googleapis.com/ajax/libs/webfont/1.6.26/webfont.js"></script>
+</head>
+<body>
+
+    <div id="game-container"></div>
+
+    <script>
+        // --- 1. CONFIGURATION (From Design Doc Sections 4.1, 4.4, 4.7) ---
+
+        const GAME_WIDTH = 1000;
+        const GAME_HEIGHT = 600;
+        
+        // Player Physics
+        const PLAYER_JUMP_VELOCITY = -750;
+        const GRAVITY = 1800;
+        
+        // Ground position (invisible)
+        const GROUND_Y = GAME_HEIGHT - 30;
+
+        // Game Speed & Scoring
+        const INITIAL_GAME_SPEED = 8;
+        const GAME_SPEED_INCREMENT = 0.005; // How much speed increases per score point
+        
+        // Credits Screen
+        const CREDIT_THRESHOLD = 1000; // Points needed to unlock credits
+
+        // --- 2. ASSET DEFINITIONS (Placeholders) ---
+
+        const ASSETS = {
+            PLAYER: { 
+                key: 'player', 
+                url: 'https://placehold.co/60x80/fde047/333?text=HERO' 
+            },
+            PLAYER_DUCK: {
+                key: 'player_duck',
+                url: 'https://placehold.co/60x50/fde047/333?text=HERO+DUCK'
+            },
+            BACKGROUND: { 
+                key: 'background', 
+                url: 'https://placehold.co/1200x600/22c55e/FFF?text=SCROLLING+LANDSCAPE' 
+            },
+            OBSTACLE_SMALL: { 
+                key: 'obstacle_small', 
+                url: 'https://placehold.co/40x80/ef4444/FFF?text=BRICK' 
+            },
+            OBSTACLE_LARGE: { 
+                key: 'obstacle_large', 
+                url: 'https://placehold.co/120x60/3b82f6/FFF?text=WALL' 
+            },
+            OBSTACLE_FLYING: {
+                key: 'obstacle_flying',
+                url: 'https://placehold.co/70x50/eab308/FFF?text=FLYER'
+            }
+        };
+
+        // --- 3. OBSTACLE CONFIGURATIONS (Implements Section 4.6) ---
+        
+        /**
+         * This configures our obstacles. We now have two types.
+         */
+        const GROUND_OBSTACLE_CONFIGS = [
+            {
+                key: ASSETS.OBSTACLE_SMALL.key,
+                hitbox: { width: 35, height: 75 }
+            },
+            {
+                key: ASSETS.OBSTACLE_LARGE.key,
+                hitbox: { width: 115, height: 55 }
+            }
+        ];
+
+        const FLYING_OBSTACLE_CONFIGS = [
+            {
+                key: ASSETS.OBSTACLE_FLYING.key,
+                hitbox: { width: 65, height: 45 }
+            }
+        ];
+
+        // --- 4. GAME SCENES (Implements Section 4.5: Game States) ---
+
+        /**
+         * BootScene (State: LOADING)
+         * Loads all game assets and the custom font.
+         * Transitions to the GameScene and UIScene once loading is complete.
+         */
+        class BootScene extends Phaser.Scene {
+            constructor() {
+                super({ key: 'BootScene' });
+            }
+
+            preload() {
+                console.log('BootScene: preload');
+                // Load placeholder images
+                this.load.image(ASSETS.PLAYER.key, ASSETS.PLAYER.url);
+                this.load.image(ASSETS.PLAYER_DUCK.key, ASSETS.PLAYER_DUCK.url);
+                this.load.image(ASSETS.BACKGROUND.key, ASSETS.BACKGROUND.url);
+                this.load.image(ASSETS.OBSTACLE_SMALL.key, ASSETS.OBSTACLE_SMALL.url);
+                this.load.image(ASSETS.OBSTACLE_LARGE.key, ASSETS.OBSTACLE_LARGE.url);
+                this.load.image(ASSETS.OBSTACLE_FLYING.key, ASSETS.OBSTACLE_FLYING.url);
+
+                // Show a simple loading text
+                const loadingStyle = { font: "32px Arial", fill: "#FFFFFF" };
+                this.loadingText = this.add.text(GAME_WIDTH / 2, GAME_HEIGHT / 2, "LOADING...", loadingStyle).setOrigin(0.5);
+
+                // Load the 'Luckiest Guy' font using the WebFontLoader
+                // this.loadWebFont(); // <-- MOVED: This was called too early, creating a race condition.
+            }
+
+            create() {
+                console.log('BootScene: create (Images loaded)');
+                // All assets from preload() are finished.
+                // Now, we load the font, and *its* callback will start the game.
+                this.loadWebFont();
+            }
+
+            loadWebFont() {
+                WebFont.load({
+                    google: {
+                        families: ['Luckiest Guy']
+                    },
+                    active: () => {
+                        console.log('Font loaded.');
+                        // Add class to game container to make it visible
+                        document.getElementById('game-container').classList.add('font-loaded');
+                        // Font is loaded, proceed to start the game
+                        this.startGame();
+                    },
+                    inactive: () => {
+                        console.warn('Font could not be loaded, using fallback.');
+                        // Still start the game, browser will use a fallback
+                        document.getElementById('game-container').classList.add('font-loaded');
+                        this.startGame();
+                    }
+                });
+            }
+
+            startGame() {
+                if (this.loadingText) this.loadingText.destroy();
+                
+                // Start the main game scene
+                this.scene.start('GameScene');
+                
+                // Start the UI scene in parallel, on top of the GameScene
+                this.scene.start('UIScene');
+            }
+        }
+        
+        /**
+         * GameScene (State: PLAYING)
+         * Handles all core game logic: player, obstacles, physics, and scoring.
+         */
+        class GameScene extends Phaser.Scene {
+            constructor() {
+                super({ key: 'GameScene' });
+            }
+
+            init() {
+                // Reset all game variables
+                this.score = 0;
+                this.gameSpeed = INITIAL_GAME_SPEED;
+                this.isGameOver = false;
+                this.playerIsDucking = false;
+            }
+
+            create() {
+                console.log('GameScene: create');
+                // --- Scrolling Background (Section 4.3) ---
+                // A TileSprite is Phaser's built-in object for scrolling backgrounds
+                this.background = this.add.tileSprite(0, 0, GAME_WIDTH, GAME_HEIGHT, ASSETS.BACKGROUND.key)
+                    .setOrigin(0, 0)
+                    .setScrollFactor(0); // Stays fixed relative to camera
+
+                // --- Invisible Ground ---
+                // We create a static, invisible physics body for the ground
+                this.ground = this.physics.add.staticSprite(GAME_WIDTH / 2, GROUND_Y + 10, null)
+                    .setSize(GAME_WIDTH, 20)
+                    .setVisible(false);
+
+                // --- Player (Section 4.1) ---
+                this.player = this.physics.add.sprite(150, GROUND_Y, ASSETS.PLAYER.key)
+                    .setOrigin(0.5, 1) // <-- THE FIX: Anchor sprite to bottom-center
+                    .setCollideWorldBounds(true);
+                
+                // Set the player's hitbox to be slightly smaller than the sprite
+                // 60x80 sprite -> 50x70 body. We offset Y by 10 to place body at the bottom.
+                this.player.body.setSize(50, 70).setOffset(5, 10);
+
+                // Add collider between player and ground
+                this.physics.add.collider(this.player, this.ground);
+
+                // --- Obstacles (Section 4.2 & 4.6) ---
+                this.obstacleGroup = this.physics.add.group({
+                    allowGravity: false,
+                    immovable: true
+                });
+
+                // Add collision handler
+                this.physics.add.overlap(this.player, this.obstacleGroup, this.hitObstacle, null, this);
+
+                // Timer to spawn obstacles
+                this.spawnTimer = this.time.addEvent({
+                    delay: 2000, // Initial delay
+                    callback: this.spawnObstacle,
+                    callbackScope: this,
+                    loop: true
+                });
+
+                // --- Input (Section 4.1) ---
+                this.input.on('pointerdown', this.jump, this);
+                this.input.keyboard.on('keydown-SPACE', this.jump, this);
+                this.input.keyboard.on('keydown-DOWN', this.duck, this);
+                this.input.keyboard.on('keyup-DOWN', this.standUp, this);
+
+                // --- Start Screen (Section 4.5: READY) ---
+                const startTextStyle = { 
+                    fontFamily: '"Luckiest Guy", sans-serif', 
+                    fontSize: '64px', 
+                    color: '#FFF', 
+                    stroke: '#000', 
+                    strokeThickness: 8 
+                };
+                this.startText = this.add.text(GAME_WIDTH / 2, GAME_HEIGHT / 2, 'CLICK TO START', startTextStyle).setOrigin(0.5);
+                
+                // Pause the game until the first click
+                this.physics.pause();
+            }
+
+            jump() {
+                if (this.isGameOver || this.playerIsDucking) return;
+
+                // Handle the first click (READY -> PLAYING state)
+                if (this.physics.world.isPaused) {
+                    this.physics.resume();
+                    this.startText.destroy();
+                }
+
+                // Only jump if touching the ground
+                if (this.player.body.touching.down) {
+                    this.player.setVelocityY(PLAYER_JUMP_VELOCITY);
+                }
+            }
+
+            duck() {
+                if (this.isGameOver || !this.player.body.touching.down || this.playerIsDucking) return;
+
+                this.playerIsDucking = true;
+                this.player.setTexture(ASSETS.PLAYER_DUCK.key);
+
+                // New hitbox: 60x50 sprite -> 50x40 body.
+                // We offset Y by 10 (sprite height 50 - body height 40)
+                // to keep the body aligned with the bottom of the sprite.
+                // Note: The physics body is aligned to the *new* sprite.
+                this.player.body.setSize(50, 40).setOffset(5, 10);
+            }
+
+            standUp() {
+                if (this.isGameOver || !this.playerIsDucking) return;
+
+                this.playerIsDucking = false;
+                this.player.setTexture(ASSETS.PLAYER.key);
+                
+                // Restore original hitbox
+                this.player.body.setSize(50, 70).setOffset(5, 10);
+            }
+
+            spawnObstacle() {
+                // Randomly pick a spawn type
+                const spawnType = Phaser.Math.RND.pick(['ground', 'ground', 'flying']); // 2:1 chance of ground
+
+                if (spawnType === 'ground') {
+                    // --- Spawn Ground Obstacle (Original Logic) ---
+                    const config = Phaser.Math.RND.pick(GROUND_OBSTACLE_CONFIGS);
+
+                    // Create the obstacle
+                    const obstacle = this.obstacleGroup.create(GAME_WIDTH + 100, GROUND_Y, config.key)
+                        .setOrigin(0.5, 1) // Anchor to bottom-center
+                        .refreshBody(); // Apply changes
+
+                    // Set the custom hitbox based on our config
+                    obstacle.body.setSize(config.hitbox.width, config.hitbox.height);
+                } else {
+                    // --- Spawn Flying Obstacle (New Logic) ---
+                    const config = Phaser.Math.RND.pick(FLYING_OBSTACLE_CONFIGS);
+
+                    // Spawn at a height the player must duck under
+                    const spawnY = GROUND_Y - 70; // 70px above ground, adjust as needed
+
+                    const obstacle = this.obstacleGroup.create(GAME_WIDTH + 100, spawnY, config.key)
+                        .setOrigin(0.5, 0.5) // Anchor to center
+                        .refreshBody();
+
+                    // Set custom hitbox
+                    obstacle.body.setSize(config.hitbox.width, config.hitbox.height);
+                }
+
+                
+                // Update the spawn timer for the *next* obstacle
+                // This creates the semi-random gap from Section 4.2
+                this.spawnTimer.delay = Phaser.Math.Between(1500, 3500) / (this.gameSpeed / INITIAL_GAME_SPEED);
+            }
+
+            hitObstacle(player, obstacle) {
+                if (this.isGameOver) return; // Prevent multiple triggers
+
+                console.log('Game Over');
+                this.isGameOver = true;
+                this.physics.pause();
+                this.spawnTimer.remove();
+
+                // Ensure player is standing on game over
+                this.standUp();
+
+                // Visual feedback
+                this.player.setTint(0xff0000); // Red tint
+                this.cameras.main.shake(300, 0.01);
+
+                // --- Game Over (Section 4.5) ---
+                // After a delay, launch the GameOver scene
+                // Pass the final score to it
+                this.time.delayedCall(500, () => {
+                    this.scene.launch('GameOverScene', { 
+                        score: Math.floor(this.score) 
+                    });
+                });
+            }
+
+            update(time, delta) {
+                if (this.isGameOver || this.physics.world.isPaused) {
+                    return;
+                }
+
+                // --- Scrolling Background (Section 4.3) ---
+                // Scroll at half the game speed for a parallax effect
+                this.background.tilePositionX += (this.gameSpeed / 2);
+
+                // --- Update Obstacles ---
+                // Move all obstacles in the group to the left
+                Phaser.Actions.IncX(this.obstacleGroup.getChildren(), -this.gameSpeed);
+
+                // --- Scoring & Speed (Section 4.4) ---
+                // Increase score over time
+                this.score += delta * 0.01;
+                
+                // Increase game speed based on score
+                this.gameSpeed = INITIAL_GAME_SPEED + (this.score * GAME_SPEED_INCREMENT);
+
+                // Emit event for UIScene to update
+                this.events.emit('updateScore', Math.floor(this.score));
+
+                // --- Cleanup ---
+                // Destroy obstacles that are off-screen
+                this.obstacleGroup.getChildren().forEach(obstacle => {
+                    if (obstacle.getBounds().right < 0) {
+                        obstacle.destroy();
+                    }
+                });
+            }
+        }
+
+        /**
+         * UIScene (State: PLAYING_UI)
+         * Runs in parallel to GameScene.
+         * Only responsible for displaying the score.
+         */
+        class UIScene extends Phaser.Scene {
+            constructor() {
+                super({ key: 'UIScene' });
+            }
+
+            create() {
+                console.log('UIScene: create');
+                
+                // --- UI Style (Section 3: Theme) ---
+                const scoreStyle = {
+                    fontFamily: '"Luckiest Guy", sans-serif',
+                    fontSize: '48px',
+                    color: '#FFFFFF',
+                    align: 'right',
+                    stroke: '#000000',
+                    strokeThickness: 6
+                };
+
+                this.scoreText = this.add.text(GAME_WIDTH - 30, 30, 'SCORE: 0', scoreStyle)
+                    .setOrigin(1, 0);
+
+                // Listen for the 'updateScore' event from GameScene
+                const gameScene = this.scene.get('GameScene');
+                gameScene.events.on('updateScore', (score) => {
+                    this.scoreText.setText('SCORE: ' + score);
+                });
+            }
+        }
+
+        /**
+         * GameOverScene (States: GAME_OVER, CREDITS)
+         * Displays the final score and handles restart/credits logic.
+         */
+        class GameOverScene extends Phaser.Scene {
+            constructor() {
+                super({ key: 'GameOverScene' });
+            }
+
+            init(data) {
+                this.finalScore = data.score;
+            }
+
+            create() {
+                console.log('GameOverScene: create');
+                // Dark overlay
+                this.add.rectangle(0, 0, GAME_WIDTH, GAME_HEIGHT, 0x000000, 0.7).setOrigin(0);
+
+                // --- UI Styles (Section 3: Theme) ---
+                const titleStyle = { 
+                    fontFamily: '"Luckiest Guy", sans-serif', 
+                    fontSize: '96px', 
+                    color: '#ef4444', 
+                    stroke: '#000', 
+                    strokeThickness: 10 
+                };
+                const scoreStyle = { 
+                    fontFamily: '"Luckiest Guy", sans-serif', 
+                    fontSize: '64px', 
+                    color: '#FFF', 
+                    stroke: '#000', 
+                    strokeThickness: 8 
+                };
+                const buttonStyle = { 
+                    fontFamily: '"Luckiest Guy", sans-serif', 
+                    fontSize: '48px', 
+                    color: '#fde047', // Bright Yellow
+                    stroke: '#000', 
+                    strokeThickness: 6,
+                    backgroundColor: '#3b82f6', // Bright Blue
+                    padding: { left: 20, right: 20, top: 10, bottom: 10 }
+                };
+                
+                // --- Create UI Groups ---
+                // We use groups to easily toggle between GAME_OVER and CREDITS
+                this.gameOverGroup = this.add.group();
+                this.creditsGroup = this.add.group();
+
+                // --- Game Over Display ---
+                const title = this.add.text(GAME_WIDTH / 2, GAME_HEIGHT / 2 - 150, 'GAME OVER', titleStyle).setOrigin(0.5);
+                const scoreText = this.add.text(GAME_WIDTH / 2, GAME_HEIGHT / 2 - 50, 'FINAL SCORE: ' + this.finalScore, scoreStyle).setOrigin(0.5);
+
+                // --- Buttons ---
+                const restartButton = this.add.text(GAME_WIDTH / 2, GAME_HEIGHT / 2 + 80, 'RESTART', buttonStyle)
+                    .setOrigin(0.5)
+                    .setInteractive({ useHandCursor: true });
+                
+                this.gameOverGroup.addMultiple([title, scoreText, restartButton]);
+
+                // --- Credits Screen (Section 4.7) ---
+                const canShowCredits = this.finalScore >= CREDIT_THRESHOLD;
+                
+                if (canShowCredits) {
+                    const creditsButton = this.add.text(GAME_WIDTH / 2, GAME_HEIGHT / 2 + 180, 'VIEW CREDITS', buttonStyle)
+                        .setOrigin(0.5)
+                        .setInteractive({ useHandCursor: true });
+                    
+                    this.gameOverGroup.add(creditsButton);
+                    
+                    creditsButton.on('pointerdown', () => this.showCredits(true));
+                    this.addHoverEffect(creditsButton);
+                }
+
+                // --- Credits Display (initially hidden) ---
+                const creditsTitle = this.add.text(GAME_WIDTH / 2, 100, 'CREDITS', titleStyle).setOrigin(0.5);
+                const creditsBody = this.add.text(GAME_WIDTH / 2, 300, 
+                    'A GAME BY:\nSir [Your Name Here]\n\nDESIGN:\nGemini Advanced\n\nTECHNOLOGY:\nPhaser 3', 
+                    { ...scoreStyle, fontSize: '40px', align: 'center' }
+                ).setOrigin(0.5);
+                
+                const backButton = this.add.text(GAME_WIDTH / 2, GAME_HEIGHT - 100, 'BACK', buttonStyle)
+                    .setOrigin(0.5)
+                    .setInteractive({ useHandCursor: true });
+                
+                this.creditsGroup.addMultiple([creditsTitle, creditsBody, backButton]);
+                this.creditsGroup.setVisible(false); // Hide it
+
+                // --- Button Events ---
+                restartButton.on('pointerdown', this.restartGame, this);
+                backButton.on('pointerdown', () => this.showCredits(false));
+                
+                this.addHoverEffect(restartButton);
+                this.addHoverEffect(backButton);
+            }
+            
+            addHoverEffect(button) {
+                button.on('pointerover', () => button.setStyle({ color: '#FFF' }));
+                button.on('pointerout', () => button.setStyle({ color: '#fde047' }));
+            }
+
+            showCredits(show) {
+                this.gameOverGroup.setVisible(!show);
+                this.creditsGroup.setVisible(show);
+            }
+
+            restartGame() {
+                console.log('Restarting game...');
+                // Stop this scene and the UI scene
+                this.scene.stop('GameOverScene');
+                this.scene.stop('UIScene');
+                
+                // Restart the main game scene (which triggers UIScene via Boot logic)
+                // A full start is cleaner than a restart here
+                this.scene.start('BootScene');
+            }
+        }
+
+        // --- 5. PHASER GAME CONFIGURATION ---
+
+        const config = {
+            type: Phaser.AUTO, // Use WebGL if available, otherwise Canvas
+            width: GAME_WIDTH,
+            height: GAME_HEIGHT,
+            parent: 'game-container',
+            backgroundColor: '#000000',
+            physics: {
+                default: 'arcade',
+                arcade: {
+                    gravity: { y: GRAVITY },
+                    debug: false // Set to true to see hitboxes
+                }
+            },
+            scene: [BootScene, GameScene, UIScene, GameOverScene]
+        };
+
+        // --- 6. START GAME ---
+        
+        const game = new Phaser.Game(config);
+
+    </script>
+</body>
+</html>
