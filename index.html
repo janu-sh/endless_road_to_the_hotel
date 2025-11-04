@@ -323,8 +323,8 @@
 
                 // --- Sidekicks (positioned to the left of hero) ---
                 this.sidekicks = [];
-                const sidekickOffsets = [-80, -160]; // X offsets from player
-                const sidekickDelays = [300, 600]; // Delays in milliseconds
+                const sidekickOffsets = [-60, -90]; // X offsets from player
+                const sidekickDelays = [150, 300]; // Delays in milliseconds
                 
                 for (let i = 0; i < 2; i++) {
                     // Use regular sprites (not physics sprites) since they just mirror visually
@@ -334,7 +334,9 @@
                         ASSETS.SIDEKICK.key
                     )
                         .setOrigin(0.5, 1)
-                        .setAlpha(0.8); // Slightly transparent to distinguish from hero
+                        .setScale(0.90) // Slightly smaller than hero
+                        .setAlpha(0.90) // Slightly transparent to distinguish from hero
+                        //.setDepth(-1); // Render behind hero
                     
                     this.sidekicks.push({
                         sprite: sidekick,
