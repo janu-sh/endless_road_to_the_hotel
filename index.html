@@ -85,6 +85,14 @@
         const INITIAL_GAME_SPEED = 8;
         const GAME_SPEED_INCREMENT = 0.005; // How much speed increases per score point
         
+        // Camera Zoom & Player Movement
+        const INITIAL_ZOOM = 1.0;
+        const MAX_ZOOM = 2.0; // Maximum zoom level
+        const ZOOM_INCREMENT = 0.001; // How much zoom increases per score point
+        const PLAYER_INITIAL_X = 150;
+        const PLAYER_TARGET_X = 600; // How far right the player moves (in world space)
+        const PLAYER_MOVEMENT_SPEED = 0.002; // How quickly player moves right (slower = more dramatic)
+        
         // Credits Screen
         const CREDIT_THRESHOLD = 1000; // Points needed to unlock credits
 
@@ -249,6 +257,7 @@
                 this.gameSpeed = INITIAL_GAME_SPEED;
                 this.isGameOver = false;
                 this.playerIsDucking = false;
+                this.currentZoom = INITIAL_ZOOM;
             }
 
             create() {
@@ -276,7 +285,7 @@
                     .setVisible(false);
 
                 // --- Player (Section 4.1) ---
-                this.player = this.physics.add.sprite(150, GROUND_Y, ASSETS.PLAYER.key)
+                this.player = this.physics.add.sprite(PLAYER_INITIAL_X, GROUND_Y, ASSETS.PLAYER.key)
                     .setOrigin(0.5, 1) // <-- THE FIX: Anchor sprite to bottom-center
                     .setCollideWorldBounds(true);
                 
@@ -288,11 +297,18 @@
                 this.physics.add.collider(this.player, this.ground);
 
                 // --- Boss Character (stays on right side) ---
-                const bossX = GAME_WIDTH - 150; // Position on right side
+                const bossX = GAME_WIDTH - 130; // Position on right side
                 const bossY = GROUND_Y; // Standing on ground
                 this.boss = this.add.sprite(bossX, bossY, ASSETS.BOSS.key)
                     .setOrigin(0.5, 1) // Anchor to bottom-center
                     .setDepth(10); // Render above obstacles
+
+                // --- Camera Setup ---
+                // Set camera origin to bottom so zoom grows upward
+                this.cameras.main.setZoom(INITIAL_ZOOM);
+                // Set origin to bottom-center (0.5, 1) so zoom expands upward from ground
+                this.cameras.main.setOrigin(0.5, 1);
+                this.initialCameraX = GAME_WIDTH / 2;
 
                 // --- Obstacles (Section 4.2 & 4.6) ---
                 this.obstacleGroup = this.physics.add.group({
@@ -466,8 +482,28 @@
                 // Increase game speed based on score
                 this.gameSpeed = INITIAL_GAME_SPEED + (this.score * GAME_SPEED_INCREMENT);
 
-                // Emit event for UIScene to update
-                this.events.emit('updateScore', Math.floor(this.score));
+                // --- Progressive Zoom & Player Movement ---
+                // Gradually zoom in as score increases
+                this.currentZoom = Math.min(MAX_ZOOM, INITIAL_ZOOM + (this.score * ZOOM_INCREMENT));
+                this.cameras.main.setZoom(this.currentZoom);
+
+                // Move player slowly towards boss (in world space) for dramatic "catching up" effect
+                const progressRatio = Math.min(1, this.score * PLAYER_MOVEMENT_SPEED); // 0 to 1 over time
+                const targetX = PLAYER_INITIAL_X + (PLAYER_TARGET_X - PLAYER_INITIAL_X) * progressRatio;
+                this.player.x = targetX;
+
+                // Adjust camera to keep player and boss on opposite sides of screen
+                // As we zoom in, we need to pan the camera to maintain framing
+                const zoomProgress = (this.currentZoom - INITIAL_ZOOM) / (MAX_ZOOM - INITIAL_ZOOM);
+                const cameraOffsetX = zoomProgress * 125; // Pan camera right as we zoom
+                this.cameras.main.scrollX = cameraOffsetX;
+                
+                // Keep ground level at bottom of screen as we zoom
+                // Adjust Y scroll to compensate for zoom origin at bottom
+                this.cameras.main.scrollY = 0;
+
+                // Emit event for UIScene to update (includes zoom level for UI positioning)
+                this.events.emit('updateScore', Math.floor(this.score), this.currentZoom);
 
                 // --- Cleanup ---
                 // Destroy obstacles that are off-screen
@@ -507,8 +543,10 @@
 
                 // Listen for the 'updateScore' event from GameScene
                 const gameScene = this.scene.get('GameScene');
-                gameScene.events.on('updateScore', (score) => {
+                gameScene.events.on('updateScore', (score, zoom) => {
                     this.scoreText.setText('SCORE: ' + score);
+                    // Keep UI text properly positioned as camera zooms
+                    // The UI scene doesn't zoom, so we don't need to adjust
                 });
             }
         }
