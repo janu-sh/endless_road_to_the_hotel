@@ -114,6 +114,18 @@
             OBSTACLE_FLYING: {
                 key: 'obstacle_flying',
                 url: 'https://placehold.co/70x150/eab308/FFF?text=FLYER'
+            },
+            BOSS: {
+                key: 'boss',
+                url: 'https://placehold.co/120x180/8b5cf6/FFF?text=BOSS'
+            },
+            BOSS_THROW: {
+                key: 'boss_throw',
+                url: 'https://placehold.co/120x180/a855f7/FFF?text=THROW'
+            },
+            BOSS_KICK: {
+                key: 'boss_kick',
+                url: 'https://placehold.co/120x180/c084fc/FFF?text=KICK'
             }
         };
 
@@ -161,6 +173,9 @@
                 this.load.image(ASSETS.OBSTACLE_SMALL.key, ASSETS.OBSTACLE_SMALL.url);
                 this.load.image(ASSETS.OBSTACLE_LARGE.key, ASSETS.OBSTACLE_LARGE.url);
                 this.load.image(ASSETS.OBSTACLE_FLYING.key, ASSETS.OBSTACLE_FLYING.url);
+                this.load.image(ASSETS.BOSS.key, ASSETS.BOSS.url);
+                this.load.image(ASSETS.BOSS_THROW.key, ASSETS.BOSS_THROW.url);
+                this.load.image(ASSETS.BOSS_KICK.key, ASSETS.BOSS_KICK.url);
 
                 // Show a simple loading text
                 const loadingStyle = { font: "32px Arial", fill: "#FFFFFF" };
@@ -252,6 +267,13 @@
                 // Add collider between player and ground
                 this.physics.add.collider(this.player, this.ground);
 
+                // --- Boss Character (stays on right side) ---
+                const bossX = GAME_WIDTH - 150; // Position on right side
+                const bossY = GROUND_Y; // Standing on ground
+                this.boss = this.add.sprite(bossX, bossY, ASSETS.BOSS.key)
+                    .setOrigin(0.5, 1) // Anchor to bottom-center
+                    .setDepth(10); // Render above obstacles
+
                 // --- Obstacles (Section 4.2 & 4.6) ---
                 this.obstacleGroup = this.physics.add.group({
                     allowGravity: false,
@@ -332,24 +354,38 @@
                 const spawnType = Phaser.Math.RND.pick(['ground', 'ground', 'flying']); // 2:1 chance of ground
 
                 if (spawnType === 'ground') {
-                    // --- Spawn Ground Obstacle (Original Logic) ---
+                    // --- Boss Kicks Ground Obstacle ---
                     const config = Phaser.Math.RND.pick(GROUND_OBSTACLE_CONFIGS);
 
-                    // Create the obstacle
-                    const obstacle = this.obstacleGroup.create(GAME_WIDTH + 100, GROUND_Y, config.key)
+                    // Boss kick animation
+                    this.boss.setTexture(ASSETS.BOSS_KICK.key);
+                    this.time.delayedCall(300, () => {
+                        if (this.boss) this.boss.setTexture(ASSETS.BOSS.key);
+                    });
+
+                    // Spawn obstacle near boss position
+                    const spawnX = this.boss.x - 80; // Spawn near boss's feet
+                    const obstacle = this.obstacleGroup.create(spawnX, GROUND_Y, config.key)
                         .setOrigin(0.5, 1) // Anchor to bottom-center
                         .refreshBody(); // Apply changes
 
                     // Set the custom hitbox based on our config
                     obstacle.body.setSize(config.hitbox.width, config.hitbox.height);
                 } else {
-                    // --- Spawn Flying Obstacle (New Logic) ---
+                    // --- Boss Throws Flying Obstacle ---
                     const config = Phaser.Math.RND.pick(FLYING_OBSTACLE_CONFIGS);
 
-                    // Spawn at a height the player must duck under
+                    // Boss throw animation
+                    this.boss.setTexture(ASSETS.BOSS_THROW.key);
+                    this.time.delayedCall(300, () => {
+                        if (this.boss) this.boss.setTexture(ASSETS.BOSS.key);
+                    });
+
+                    // Spawn at a height the player must duck under, near boss's hand
+                    const spawnX = this.boss.x - 80; // Spawn near boss
                     const spawnY = GROUND_Y - 45; // 45px above ground
 
-                    const obstacle = this.obstacleGroup.create(GAME_WIDTH + 100, spawnY, config.key)
+                    const obstacle = this.obstacleGroup.create(spawnX, spawnY, config.key)
                         .setOrigin(0.5, 1) // Anchor to bottom-center
                         .refreshBody();
 
