@@ -100,6 +100,9 @@
         
         // Credits Screen
         const CREDIT_THRESHOLD = 1000; // Points needed to unlock credits
+        
+        // Rain Effect Toggle
+        const RAIN_ENABLED = true; // Set to false to disable rain particles
 
         // --- 2. ASSET DEFINITIONS (Placeholders) ---
 
@@ -276,6 +279,10 @@
                 
                 // Action queue for sidekicks to mirror hero's actions
                 this.actionQueue = [];
+                
+                // Rain particle arrays
+                this.rainParticles = [];
+                this.splashParticles = [];
             }
 
             create() {
@@ -353,6 +360,26 @@
                 // Set origin to bottom-center (0.5, 1) so zoom expands upward from ground
                 this.cameras.main.setOrigin(0.5, 1);
                 this.initialCameraX = GAME_WIDTH / 2;
+
+                // --- Rain Particle System ---
+                this.rainGraphics = this.add.graphics();
+                this.splashGraphics = this.add.graphics();
+                
+                // Set depth so rain appears in front of background but behind characters
+                this.rainGraphics.setDepth(5);
+                this.splashGraphics.setDepth(6);
+                
+                // Timer to spawn rain particles
+                this.rainTimer = this.time.addEvent({
+                    delay: 100, // Spawn rain less frequently for performance
+                    callback: this.spawnRain,
+                    callbackScope: this,
+                    loop: true
+                });
+                
+                // Limit max particles for performance
+                this.maxRainParticles = 50;
+                this.maxSplashParticles = 40;
 
                 // --- Obstacles (Section 4.2 & 4.6) ---
                 this.obstacleGroup = this.physics.add.group({
@@ -504,6 +531,7 @@
                 this.isGameOver = true;
                 this.physics.pause();
                 this.spawnTimer.remove();
+                this.rainTimer.remove();
 
                 // Ensure player is standing on game over
                 this.standUp();
@@ -520,6 +548,105 @@
                         score: Math.floor(this.score) 
                     });
                 });
+            }
+
+            spawnRain() {
+                // Don't spawn if rain is disabled
+                if (!RAIN_ENABLED) {
+                    return;
+                }
+                
+                // Only spawn if under particle limit
+                if (this.rainParticles.length >= this.maxRainParticles) {
+                    return;
+                }
+                
+                // Spawn 1 rain particle at a time
+                // Spawn further to the right to compensate for leftward wind push
+                const x = Phaser.Math.Between(-50, GAME_WIDTH + 400);
+                const y = -10;
+                const speed = Phaser.Math.Between(500, 700);
+                const length = Phaser.Math.Between(15, 25); // Longer streaks
+                
+                // Calculate horizontal wind speed based on game speed
+                // As game gets faster, rain appears more horizontal
+                const windSpeed = 500 + (this.gameSpeed - INITIAL_GAME_SPEED) * 150; // Scales with speed increase
+                
+                this.rainParticles.push({
+                    x: x,
+                    y: y,
+                    speed: speed,
+                    windSpeed: windSpeed,
+                    length: length,
+                    alpha: Phaser.Math.FloatBetween(0.5, 0.8) // More visible
+                });
+            }
+
+            createSplash(x, y) {
+                // Only create splash if under particle limit
+                if (this.splashParticles.length >= this.maxSplashParticles) {
+                    return;
+                }
+                
+                // Create 2-3 small, subtle splash particles
+                const count = Phaser.Math.Between(2, 3);
+                for (let i = 0; i < count; i++) {
+                    const angle = Phaser.Math.Between(-30, 30) - 90; // Spray upward (narrower angle)
+                    const speed = Phaser.Math.Between(30, 80); // Slower, less dramatic
+                    const rad = Phaser.Math.DegToRad(angle);
+                    
+                    this.splashParticles.push({
+                        x: x,
+                        y: y,
+                        vx: Math.cos(rad) * speed,
+                        vy: Math.sin(rad) * speed,
+                        life: 200, // Shorter lifetime (milliseconds)
+                        maxLife: 200,
+                        size: Phaser.Math.FloatBetween(1, 2) // Smaller particles
+                    });
+                }
+            }
+
+            checkRainCollisions(rain) {
+                // Check collision with ground
+                if (rain.y >= GROUND_Y - 5) {
+                    this.createSplash(rain.x, GROUND_Y);
+                    return true;
+                }
+
+                // Check collision with player
+                const playerBounds = this.player.getBounds();
+                if (Phaser.Geom.Rectangle.Contains(playerBounds, rain.x, rain.y)) {
+                    this.createSplash(rain.x, rain.y);
+                    return true;
+                }
+
+                // Check collision with sidekicks
+                for (let sidekick of this.sidekicks) {
+                    const bounds = sidekick.sprite.getBounds();
+                    if (Phaser.Geom.Rectangle.Contains(bounds, rain.x, rain.y)) {
+                        this.createSplash(rain.x, rain.y);
+                        return true;
+                    }
+                }
+
+                // Check collision with boss
+                const bossBounds = this.boss.getBounds();
+                if (Phaser.Geom.Rectangle.Contains(bossBounds, rain.x, rain.y)) {
+                    this.createSplash(rain.x, rain.y);
+                    return true;
+                }
+
+                // Check collision with obstacles
+                for (let obstacle of this.obstacleGroup.getChildren()) {
+                    const obstacleBounds = obstacle.getBounds();
+                    if (Phaser.Geom.Rectangle.Contains(obstacleBounds, rain.x, rain.y)) {
+                        this.createSplash(rain.x, rain.y);
+                        return true;
+                    }
+                }
+
+                return false;
             }
 
             update(time, delta) {
@@ -631,6 +758,68 @@
                         obstacle.destroy();
                     }
                 });
+
+                // --- Update Rain Particles ---
+                if (RAIN_ENABLED) {
+                    this.rainGraphics.clear();
+                    this.rainGraphics.lineStyle(2.5, 0x88ccff, 1); // Thicker, more visible lines
+                    
+                    // Update and draw rain
+                    this.rainParticles = this.rainParticles.filter(rain => {
+                    // Move rain down and to the left (simulating wind from running right)
+                    rain.y += rain.speed * (delta / 1000);
+                    rain.x -= rain.windSpeed * (delta / 1000);
+                    
+                    // Check for collisions
+                    if (this.checkRainCollisions(rain)) {
+                        return false; // Remove this rain particle
+                    }
+                    
+                    // Remove if off screen
+                    if (rain.y > GAME_HEIGHT + 20) {
+                        return false;
+                    }
+                    
+                    // Draw rain drop as an angled line based on wind speed
+                    this.rainGraphics.setAlpha(rain.alpha);
+                    this.rainGraphics.beginPath();
+                    this.rainGraphics.moveTo(rain.x, rain.y);
+                    // End point is offset horizontally by wind effect
+                    const angleOffset = (rain.windSpeed / rain.speed) * rain.length;
+                    this.rainGraphics.lineTo(rain.x + angleOffset, rain.y - rain.length);
+                    this.rainGraphics.strokePath();
+                    
+                        return true; // Keep this rain particle
+                    });
+
+                    // --- Update Splash Particles ---
+                    this.splashGraphics.clear();
+                    this.splashGraphics.fillStyle(0xaaddff, 0.6); // More transparent
+                    
+                    this.splashParticles = this.splashParticles.filter(splash => {
+                    // Update position
+                    splash.x += splash.vx * (delta / 1000);
+                    splash.y += splash.vy * (delta / 1000);
+                    
+                    // Apply gravity to splash
+                    splash.vy += 500 * (delta / 1000);
+                    
+                    // Decrease life
+                    splash.life -= delta;
+                    
+                    // Remove if life is over
+                    if (splash.life <= 0) {
+                        return false;
+                    }
+                    
+                    // Draw splash particle as a circle
+                    const alpha = splash.life / splash.maxLife;
+                    this.splashGraphics.setAlpha(alpha);
+                    this.splashGraphics.fillCircle(splash.x, splash.y, splash.size);
+                    
+                        return true; // Keep this splash particle
+                    });
+                }
             }
         }
 
