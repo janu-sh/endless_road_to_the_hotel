@@ -305,9 +305,3 @@ The action queue system provides a clean separation between hero input and sidek
 - Allows different delays per sidekick
 - Automatic cleanup of old actions (>1 second)
 - Scalable to additional sidekicks without code changes
-
-## **9\. Next Steps**
-
-1. **Approval:** Please review this updated plan.  
-2. **Assets:** If you approve, you will need to provide the URLs for your custom sprites and background image. We can use placeholders initially if you prefer.  
-3. **Implementation:** I will proceed to write the complete, single-file game code based on this approved architecture.
