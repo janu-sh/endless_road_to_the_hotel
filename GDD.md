@@ -26,32 +26,146 @@ The game's aesthetic will be based on a "Legoland trip" theme, characterized by 
 
 ## **4\. Core Game Mechanics**
 
-### **4.1. Player**
+### **4.1. Player & Sidekick Characters**
 
-* The player (dino, or your custom sprite) will have a fixed horizontal (X) position on the left side of the canvas.  
+#### **Hero Player**
+* The player (hero character) starts at a fixed horizontal position on the left side of the screen.  
 * Its vertical (Y) position will be controlled by jumping.  
-* **Input:** The player will jump when the user presses the Space key or taps the screen.  
+* **Input:** The player will jump when the user presses the Space key or taps the screen. The player can duck by pressing the DOWN arrow key.  
 * **Physics:** A simple gravity mechanic will pull the player down. Jumping applies an upward vertical velocity (vy), which is decreased by gravity in each frame. The player cannot jump again until they are on the ground.
+* **Progressive Movement:** The player slowly moves towards the boss (right) as the score increases, creating a dramatic "catching up" effect.
 
-### **4.2. Obstacles**
+#### **Sidekick Characters**
+* **Count:** 2 sidekick characters positioned to the left of the hero (at -80px and -160px offsets).
+* **Visual Design:** Sidekicks use a different color scheme (purple) and are rendered at 80% opacity to distinguish them from the hero.
+* **Behavior:** Sidekicks act as "shadows" of the hero, mirroring all actions with a delay:
+  * First sidekick: 300ms delay
+  * Second sidekick: 600ms delay
+* **Action Mirroring:** When the hero jumps, ducks, or stands up, sidekicks perform the same action after their respective delays, creating the appearance of independently reacting to obstacles.
+* **Technical Implementation:** 
+  * Sidekicks are **visual-only sprites** (not physics sprites) to prevent flickering and physics conflicts.
+  * An **action queue system** records all hero actions with timestamps.
+  * Each sidekick processes the queue with its specific delay, marking actions as processed to prevent duplicate execution.
+  * Manual jump physics simulate gravity for smooth visual jumping without physics engine overhead.
+  * Sidekicks maintain their relative position to the hero as the hero moves across the screen.
 
-* Obstacles (your custom sprites) will be spawned off-screen to the far right.  
-* They will move from right to left across the screen at the current gameSpeed.  
-* Obstacles will be removed from memory once they move completely off-screen to the left to prevent performance issues.  
-* Spawning will be semi-random, with a timer ensuring a minimum and maximum gap between obstacles.
+### **4.2. Boss Character**
 
-### **4.3. Scrolling Background**
+#### **Visual Design & Position**
+* The boss character is positioned on the right side of the screen (starting at X: 870, moving towards X: 700).
+* Rendered with depth priority (setDepth: 10) to appear above obstacles.
+* Anchored to bottom-center (origin 0.5, 1) to stand on the ground level.
 
-* Your custom background image will scroll continuously from right to left.  
-* To create an "infinite" loop, we will draw the image twice, side-by-side. As the images scroll left, once the first image is completely off-screen, it will be reset to appear immediately after the second image. This gives a seamless, repeating effect.  
-* The background's scroll speed will be a fraction of the gameSpeed to create a parallax effect (depth).
+#### **Boss Behavior & Movement**
+* **Progressive Movement:** The boss slowly moves towards the player (left) as the score increases, creating a "closing the gap" effect.
+  * Initial position: `BOSS_INITIAL_X = 870` (right side)
+  * Target position: `BOSS_TARGET_X = 700`
+  * Movement speed: `BOSS_MOVEMENT_SPEED = 0.001` (slower than player for asymmetric dramatic effect)
+* **Movement Formula:** `bossX = BOSS_INITIAL_X - (BOSS_INITIAL_X - BOSS_TARGET_X) * progressRatio`
 
-### **4.4. Scoring & Speed**
+#### **Boss Actions & Obstacle Spawning**
 
-* The score will start at 0 and increase over time as long as the game is running.  
-* The gameSpeed will also start at a base value and slowly increase with the score, making the game progressively harder.
+The boss is the source of all obstacles in the game, creating them through two distinct actions:
 
-### **4.5. Game States**
+**1. Kicking (Ground Obstacles)**
+* **Visual Feedback:** Boss texture changes to `BOSS_KICK` for 300ms
+* **Spawn Behavior:** 
+  * Ground obstacles spawn near the boss's feet (80px to the left of boss position)
+  * Obstacles are anchored to bottom-center and placed at ground level
+  * Two types of ground obstacles:
+    * Small obstacle: 40x80px (hitbox: 35x75)
+    * Large obstacle: 120x60px (hitbox: 115x55)
+* **Player Response:** Player must jump over these obstacles
+
+**2. Throwing (Flying Obstacles)**
+* **Visual Feedback:** Boss texture changes to `BOSS_THROW` for 300ms
+* **Spawn Behavior:**
+  * Flying obstacles spawn near the boss's hand position (80px left of boss)
+  * Spawned at 45px above ground level
+  * Flying obstacle: 70x150px (hitbox: 70x150)
+* **Player Response:** Player must duck under these obstacles
+
+**Spawn Timing:**
+* Initial spawn delay: 2000ms
+* Subsequent delays: Random between 1500-3500ms, adjusted by game speed
+* Spawn ratio: 2:1 ground to flying obstacles (ground obstacles more common)
+* Delay formula: `delay = Phaser.Math.Between(1500, 3500) / (currentSpeed / initialSpeed)`
+
+### **4.3. Obstacles**
+
+* All obstacles are spawned by the boss character (see section 4.2).
+* Obstacles move from right to left across the screen at the current gameSpeed.
+* Obstacles are removed from memory once they move completely off-screen to the left to prevent performance issues.
+* Each obstacle type has a custom hitbox configuration for precise collision detection.
+
+### **4.4. Parallax Scrolling Background System**
+
+#### **Multi-Layer Parallax**
+The game uses a three-layer parallax scrolling system to create depth and visual interest:
+
+**Layer 1 - Far Background (Sky/Mountains)**
+* Scroll speed: `gameSpeed * 0.2` (slowest)
+* Alpha: 0.8 (slightly transparent)
+* Purpose: Creates distant horizon effect
+
+**Layer 2 - Mid Background (Distant Trees)**
+* Scroll speed: `gameSpeed * 0.5` (medium)
+* Alpha: 0.9
+* Purpose: Middle-distance scenery
+
+**Layer 3 - Near Background (Ground Layer)**
+* Scroll speed: `gameSpeed * 0.8` (fastest)
+* Alpha: 1.0 (fully opaque)
+* Purpose: Foreground ground texture
+
+#### **Technical Implementation**
+* Uses Phaser's `TileSprite` for seamless infinite scrolling
+* Each layer is 1200x600px and tiles horizontally
+* Layers set to `setScrollFactor(0)` to remain fixed relative to camera
+* Different scroll speeds create parallax depth effect as game speed increases
+
+### **4.5. Progressive Zoom & Camera System**
+
+#### **Dynamic Camera Zoom**
+The game features a progressive zoom system that creates increasing tension as the player advances:
+
+**Zoom Parameters:**
+* Initial zoom: `1.0` (normal view)
+* Maximum zoom: `2.0` (2x magnification)
+* Zoom increment: `0.001` per score point
+* Zoom formula: `currentZoom = min(MAX_ZOOM, INITIAL_ZOOM + (score * ZOOM_INCREMENT))`
+
+**Camera Configuration:**
+* Origin point: Bottom-center (0.5, 1)
+* Effect: Zoom expands upward from ground level, keeping the ground plane stable
+* Purpose: Creates cinematic "closing in" effect as player and boss converge
+
+#### **Camera Panning**
+As zoom increases, the camera pans to maintain proper framing:
+
+* Pan calculation: `cameraOffsetX = zoomProgress * 125`
+* Where: `zoomProgress = (currentZoom - INITIAL_ZOOM) / (MAX_ZOOM - INITIAL_ZOOM)`
+* Effect: Camera shifts right to keep both player and boss visible as they move closer
+* Y-scroll remains at 0 to keep ground level at bottom of screen
+
+#### **Visual Result**
+The combined effect of:
+1. Player moving right
+2. Boss moving left
+3. Progressive zoom in
+4. Camera panning
+
+Creates a dramatic "collision course" feeling where the player appears to be catching up to the boss while the view becomes more intense and focused.
+
+### **4.6. Scoring & Speed**
+
+* The score starts at 0 and increases over time (delta * 0.01) as long as the game is running.
+* The gameSpeed starts at `INITIAL_GAME_SPEED = 8` and increases based on score.
+* Speed formula: `gameSpeed = INITIAL_GAME_SPEED + (score * GAME_SPEED_INCREMENT)`
+* Speed increment: `0.005` per score point
+* Effect: Game progressively becomes harder as obstacles move faster and spawn more frequently.
+
+### **4.7. Game States**
 
 The game will be managed by a simple state machine. The primary states will be:
 
@@ -61,7 +175,7 @@ The game will be managed by a simple state machine. The primary states will be:
 * GAME\_OVER: Triggered by a collision. The game loop stops.  
 * CREDITS: A special state entered from GAME\_OVER *only if* score \> CREDIT\_THRESHOLD.
 
-### **4.6. Collision Detection (Updated)**
+### **4.8. Collision Detection (Updated)**
 
 * We will use **Composite AABB (Compound Hitboxes)**. This provides a balance between performance and accuracy, ideal for convoluted shapes.  
 * The **Player** will be defined by a single bounding box (a hitbox).  
@@ -70,7 +184,7 @@ The game will be managed by a simple state machine. The primary states will be:
 * The core AABB check for two rectangles ( a and b, each with x, y, width, height) remains simple and fast:  
   return a.x \< b.x \+ b.width && a.x \+ a.width \> b.x && a.y \< b.y \+ b.height && a.y \+ a.height \> b.y;
 
-### **4.7. Credits Screen**
+### **4.9. Credits Screen**
 
 * A constant, CREDIT\_THRESHOLD (e.g., 1000 points), will be defined.  
 * When the state changes to GAME\_OVER, the game will check: if (score \> CREDIT\_THRESHOLD).  
@@ -154,7 +268,45 @@ The index.html file will be structured as follows:
 \</body\>  
 \</html\>
 
-## **8\. Next Steps**
+## **8\. Technical Considerations & Lessons Learned**
+
+### **8.1. Sidekick Implementation Challenges**
+
+#### **Problem: Sprite Flickering**
+During initial implementation, the leftmost sidekick character exhibited flickering behavior at game start that would eventually stabilize.
+
+**Root Causes Identified:**
+1. **Physics Engine Conflicts:** Initially, sidekicks were implemented as physics sprites with collision bodies. When changing textures and body sizes during duck/standup actions, the physics engine caused jittery repositioning.
+2. **Action Processing Window:** The original time window check (`timeSinceAction >= delay && timeSinceAction < delay + 50`) allowed actions to be triggered multiple times across frames, causing rapid texture switching.
+
+**Solutions Applied:**
+1. **Visual-Only Sprites:** Converted sidekicks from `physics.add.sprite` to regular `add.sprite` objects, removing physics body interactions entirely.
+2. **Action Tracking System:** Implemented a `processedBy` array on each action to track which sidekicks have executed it, preventing duplicate processing.
+3. **Manual Jump Physics:** Created custom jump animation using manual Y-position updates with gravity calculations, avoiding physics engine overhead.
+4. **Removed Time Window Upper Bound:** Changed from time window check to single-point execution check, ensuring each action triggers exactly once per sidekick.
+
+**Key Takeaway:** For visual-only follower characters that mirror player actions, avoid physics bodies entirely. Use manual animation and state tracking for smoother, more predictable behavior.
+
+### **8.2. Action Queue Architecture**
+
+The action queue system provides a clean separation between hero input and sidekick behavior:
+
+```javascript
+// Action structure
+{
+    type: 'jump' | 'duck' | 'standup',
+    time: timestamp,
+    processedBy: [sidekickIndex, ...]
+}
+```
+
+**Benefits:**
+- Decouples hero actions from sidekick responses
+- Allows different delays per sidekick
+- Automatic cleanup of old actions (>1 second)
+- Scalable to additional sidekicks without code changes
+
+## **9\. Next Steps**
 
 1. **Approval:** Please review this updated plan.  
 2. **Assets:** If you approve, you will need to provide the URLs for your custom sprites and background image. We can use placeholders initially if you prefer.  
