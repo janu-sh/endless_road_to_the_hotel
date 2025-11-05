@@ -398,7 +398,7 @@
                 
                 // Timer to spawn rain particles (will be started when game begins)
                 this.rainTimer = this.time.addEvent({
-                    delay: 80, // Spawn rain less frequently for performance
+                    delay: 50, // Spawn rain less frequently for performance
                     callback: this.spawnRain,
                     callbackScope: this,
                     loop: true,
@@ -407,7 +407,7 @@
                 
                 // Limit max particles for performance
                 this.maxRainParticles = 50;
-                this.maxSplashParticles = 40;
+                this.maxSplashParticles = 50;
 
                 // --- Obstacles (Section 4.2 & 4.6) ---
                 this.obstacleGroup = this.physics.add.group({
@@ -608,11 +608,17 @@
                 const x = Phaser.Math.Between(-50, GAME_WIDTH + 400);
                 const y = -10;
                 const speed = Phaser.Math.Between(500, 700);
-                const length = Phaser.Math.Between(15, 25); // Longer streaks
                 
                 // Calculate horizontal wind speed based on game speed
                 // As game gets faster, rain appears more horizontal
                 const windSpeed = 500 + (this.gameSpeed - INITIAL_GAME_SPEED) * 200; // Scales with speed increase
+                
+                // Progressive rain streak length - gets longer as game progresses
+                // Base length: 15-25px, increases with game speed
+                const speedMultiplier = (this.gameSpeed - INITIAL_GAME_SPEED) / INITIAL_GAME_SPEED; // 0 to ~2+ over time
+                const baseLengthMin = 10 + (speedMultiplier * 30); // 15 -> 35+
+                const baseLengthMax = 25 + (speedMultiplier * 50); // 25 -> 55+
+                const length = Phaser.Math.Between(baseLengthMin, baseLengthMax);
                 
                 this.rainParticles.push({
                     x: x,
