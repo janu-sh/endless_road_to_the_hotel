@@ -376,7 +376,7 @@
                 
                 // Timer to spawn rain particles
                 this.rainTimer = this.time.addEvent({
-                    delay: 100, // Spawn rain less frequently for performance
+                    delay: 80, // Spawn rain less frequently for performance
                     callback: this.spawnRain,
                     callbackScope: this,
                     loop: true
@@ -575,7 +575,7 @@
                 
                 // Calculate horizontal wind speed based on game speed
                 // As game gets faster, rain appears more horizontal
-                const windSpeed = 500 + (this.gameSpeed - INITIAL_GAME_SPEED) * 150; // Scales with speed increase
+                const windSpeed = 500 + (this.gameSpeed - INITIAL_GAME_SPEED) * 200; // Scales with speed increase
                 
                 this.rainParticles.push({
                     x: x,
