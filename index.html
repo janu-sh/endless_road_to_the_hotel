@@ -392,12 +392,13 @@
                 this.rainGraphics.setDepth(5);
                 this.splashGraphics.setDepth(6);
                 
-                // Timer to spawn rain particles
+                // Timer to spawn rain particles (will be started when game begins)
                 this.rainTimer = this.time.addEvent({
                     delay: 80, // Spawn rain less frequently for performance
                     callback: this.spawnRain,
                     callbackScope: this,
-                    loop: true
+                    loop: true,
+                    paused: true // Start paused, will resume on first click
                 });
                 
                 // Limit max particles for performance
@@ -413,12 +414,13 @@
                 // Add collision handler
                 this.physics.add.overlap(this.player, this.obstacleGroup, this.hitObstacle, null, this);
 
-                // Timer to spawn obstacles
+                // Timer to spawn obstacles (will be started when game begins)
                 this.spawnTimer = this.time.addEvent({
                     delay: 2000, // Initial delay
                     callback: this.spawnObstacle,
                     callbackScope: this,
-                    loop: true
+                    loop: true,
+                    paused: true // Start paused, will resume on first click
                 });
 
                 // --- Input (Section 4.1) ---
@@ -448,6 +450,9 @@
                 if (this.physics.world.isPaused) {
                     this.physics.resume();
                     this.startText.destroy();
+                    // Resume timers when game starts
+                    this.spawnTimer.paused = false;
+                    this.rainTimer.paused = false;
                 }
 
                 // Only jump if touching the ground
