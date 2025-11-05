@@ -106,6 +106,10 @@
         
         // FPS Counter Toggle
         const FPS_ENABLED = true; // Set to false to hide FPS counter
+        
+        // Boss Attack Timing
+        const BOSS_ANIMATION_DURATION = 300; // How long boss animation plays (ms)
+        const BOSS_ATTACK_DELAY = 200; // Delay between animation start and obstacle spawn (ms)
 
         // --- 2. ASSET DEFINITIONS (Placeholders) ---
 
@@ -510,40 +514,50 @@
                     // --- Boss Kicks Ground Obstacle ---
                     const config = Phaser.Math.RND.pick(GROUND_OBSTACLE_CONFIGS);
 
-                    // Boss kick animation
+                    // Boss kick animation (telegraph)
                     this.boss.setTexture(ASSETS.BOSS_KICK.key);
-                    this.time.delayedCall(300, () => {
+                    
+                    // Return boss to normal after animation
+                    this.time.delayedCall(BOSS_ANIMATION_DURATION, () => {
                         if (this.boss) this.boss.setTexture(ASSETS.BOSS.key);
                     });
 
-                    // Spawn obstacle near boss position
-                    const spawnX = this.boss.x - 80; // Spawn near boss's feet
-                    const obstacle = this.obstacleGroup.create(spawnX, GROUND_Y, config.key)
-                        .setOrigin(0.5, 1) // Anchor to bottom-center
-                        .refreshBody(); // Apply changes
+                    // Delay obstacle spawn to give player reaction time
+                    this.time.delayedCall(BOSS_ATTACK_DELAY, () => {
+                        // Spawn obstacle near boss position
+                        const spawnX = this.boss.x - 80; // Spawn near boss's feet
+                        const obstacle = this.obstacleGroup.create(spawnX, GROUND_Y, config.key)
+                            .setOrigin(0.5, 1) // Anchor to bottom-center
+                            .refreshBody(); // Apply changes
 
-                    // Set the custom hitbox based on our config
-                    obstacle.body.setSize(config.hitbox.width, config.hitbox.height);
+                        // Set the custom hitbox based on our config
+                        obstacle.body.setSize(config.hitbox.width, config.hitbox.height);
+                    });
                 } else {
                     // --- Boss Throws Flying Obstacle ---
                     const config = Phaser.Math.RND.pick(FLYING_OBSTACLE_CONFIGS);
 
-                    // Boss throw animation
+                    // Boss throw animation (telegraph)
                     this.boss.setTexture(ASSETS.BOSS_THROW.key);
-                    this.time.delayedCall(300, () => {
+                    
+                    // Return boss to normal after animation
+                    this.time.delayedCall(BOSS_ANIMATION_DURATION, () => {
                         if (this.boss) this.boss.setTexture(ASSETS.BOSS.key);
                     });
 
-                    // Spawn at a height the player must duck under, near boss's hand
-                    const spawnX = this.boss.x - 80; // Spawn near boss
-                    const spawnY = GROUND_Y - 45; // 45px above ground
+                    // Delay obstacle spawn to give player reaction time
+                    this.time.delayedCall(BOSS_ATTACK_DELAY, () => {
+                        // Spawn at a height the player must duck under, near boss's hand
+                        const spawnX = this.boss.x - 80; // Spawn near boss
+                        const spawnY = GROUND_Y - 45; // 45px above ground
 
-                    const obstacle = this.obstacleGroup.create(spawnX, spawnY, config.key)
-                        .setOrigin(0.5, 1) // Anchor to bottom-center
-                        .refreshBody();
+                        const obstacle = this.obstacleGroup.create(spawnX, spawnY, config.key)
+                            .setOrigin(0.5, 1) // Anchor to bottom-center
+                            .refreshBody();
 
-                    // Set custom hitbox
-                    obstacle.body.setSize(config.hitbox.width, config.hitbox.height);
+                        // Set custom hitbox
+                        obstacle.body.setSize(config.hitbox.width, config.hitbox.height);
+                    });
                 }
 
                 
