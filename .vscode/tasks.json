@@ -1,0 +1,34 @@
+{
+    "version": "2.0.0",
+    "tasks": [
+        {
+            "label": "Start Dev Server",
+            "type": "shell",
+            "command": "python3 -m http.server 8000",
+            "isBackground": true,
+            "problemMatcher": [],
+            "presentation": {
+                "reveal": "always",
+                "panel": "new"
+            }
+        },
+        {
+            "label": "Open Preview",
+            "type": "shell",
+            "command": "echo 'Opening preview at http://localhost:8000'",
+            "problemMatcher": [],
+            "presentation": {
+                "reveal": "silent"
+            }
+        },
+        {
+            "label": "Start Server & Preview",
+            "dependsOrder": "sequence",
+            "dependsOn": [
+                "Start Dev Server",
+                "Open Preview"
+            ],
+            "problemMatcher": []
+        }
+    ]
+}

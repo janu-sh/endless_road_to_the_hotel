@@ -103,6 +103,9 @@
         
         // Rain Effect Toggle
         const RAIN_ENABLED = true; // Set to false to disable rain particles
+        
+        // FPS Counter Toggle
+        const FPS_ENABLED = true; // Set to false to hide FPS counter
 
         // --- 2. ASSET DEFINITIONS (Placeholders) ---
 
@@ -851,6 +854,21 @@
                 this.scoreText = this.add.text(GAME_WIDTH - 30, 30, 'SCORE: 0', scoreStyle)
                     .setOrigin(1, 0);
 
+                // --- FPS Counter Style ---
+                if (FPS_ENABLED) {
+                    const fpsStyle = {
+                        fontFamily: '"Luckiest Guy", sans-serif',
+                        fontSize: '24px',
+                        color: '#00ff00',
+                        align: 'left',
+                        stroke: '#000000',
+                        strokeThickness: 4
+                    };
+
+                    this.fpsText = this.add.text(20, 20, 'FPS: 60', fpsStyle)
+                        .setOrigin(0, 0);
+                }
+
                 // Listen for the 'updateScore' event from GameScene
                 const gameScene = this.scene.get('GameScene');
                 gameScene.events.on('updateScore', (score, zoom) => {
@@ -858,6 +876,23 @@
                     // Keep UI text properly positioned as camera zooms
                     // The UI scene doesn't zoom, so we don't need to adjust
                 });
+            }
+
+            update() {
+                // Update FPS counter
+                if (FPS_ENABLED && this.fpsText) {
+                    const fps = Math.round(this.game.loop.actualFps);
+                    this.fpsText.setText('FPS: ' + fps);
+                    
+                    // Color code based on performance
+                    if (fps >= 50) {
+                        this.fpsText.setColor('#00ff00'); // Green for good FPS
+                    } else if (fps >= 30) {
+                        this.fpsText.setColor('#ffff00'); // Yellow for moderate FPS
+                    } else {
+                        this.fpsText.setColor('#ff0000'); // Red for poor FPS
+                    }
+                }
             }
         }
 
