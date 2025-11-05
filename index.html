@@ -274,22 +274,29 @@
                 console.log('GameScene: create');
                 // --- Parallax Scrolling Backgrounds (Section 4.3) ---
                 // Multiple layers create depth through different scroll speeds
-                this.backgroundFar = this.add.tileSprite(0, 0, GAME_WIDTH, GAME_HEIGHT, ASSETS.BACKGROUND_FAR.key)
+                // Background occupies upper 4/5 of screen, leaving bottom 1/5 for road
+                const bgHeight = GAME_HEIGHT * 0.79; // 480px
+                const bgScale = bgHeight / 1024; // Scale to fit 4/5 height
+                this.backgroundFar = this.add.tileSprite(0, 0, GAME_WIDTH, bgHeight, ASSETS.BACKGROUND_FAR.key)
                     .setOrigin(0, 0)
                     .setScrollFactor(0)
-                    .setAlpha(0.8) // Slightly transparent for depth
-                    .setDepth(-10); // Farthest back
+                    .setAlpha(1.0) // Slightly transparent for depth
+                    .setDepth(-10) // Farthest back
+                    .setTileScale(bgScale, bgScale); // Scale to fit height
                 
                 this.backgroundMid = this.add.tileSprite(0, 0, GAME_WIDTH, GAME_HEIGHT, ASSETS.BACKGROUND_MID.key)
                     .setOrigin(0, 0)
                     .setScrollFactor(0)
-                    .setAlpha(0.9)
-                    .setDepth(-9); // Middle background
+                    .setAlpha(1.0) // More transparent to see through to background
+                    .setDepth(-9) // Middle background
+                    .setTileScale(bgScale, bgScale); // Scale 1024x1024 image to fit
                 
-                this.backgroundNear = this.add.tileSprite(0, 0, GAME_WIDTH, GAME_HEIGHT, ASSETS.BACKGROUND_NEAR.key)
+                this.backgroundNear = this.add.tileSprite(0, GAME_HEIGHT - bgHeight, GAME_WIDTH, bgHeight, ASSETS.BACKGROUND_NEAR.key)
                     .setOrigin(0, 0)
                     .setScrollFactor(0)
-                    .setDepth(-8); // Nearest background
+                    .setAlpha(1.0) // More transparent to see through to background
+                    .setDepth(-8) // Nearest background
+                    .setTileScale(bgScale, bgScale); // Scale 1024x1024 image to fit
 
                 // --- Invisible Ground ---
                 // We create a static, invisible physics body for the ground

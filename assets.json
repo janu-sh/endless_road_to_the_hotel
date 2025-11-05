@@ -31,17 +31,17 @@
   },
   "background_far": {
     "key": "background_far",
-    "url": "https://placehold.co/1200x600/0ea5e9/FFF?text=SKY+MOUNTAINS",
+    "url": "assets/background1.png",
     "hitbox": null
   },
   "background_mid": {
     "key": "background_mid",
-    "url": "https://placehold.co/1200x600/14b8a6/FFF?text=DISTANT+TREES",
+    "url": "assets/background2.png",
     "hitbox": null
   },
   "background_near": {
     "key": "background_near",
-    "url": "https://placehold.co/1200x600/22c55e/FFF?text=GROUND+LAYER",
+    "url": "assets/background3.png",
     "hitbox": null
   },
   "obstacle_small": {
