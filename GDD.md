@@ -124,7 +124,73 @@ The game uses a three-layer parallax scrolling system to create depth and visual
 * Layers set to `setScrollFactor(0)` to remain fixed relative to camera
 * Different scroll speeds create parallax depth effect as game speed increases
 
-### **4.5. Progressive Zoom & Camera System**
+### **4.5. Rendering Depth Order & Shadow System**
+
+#### **Depth Layering**
+Phaser renders objects based on their depth value (lower values render behind, higher values render in front). The game uses the following depth order from back to front:
+
+| Depth | Layer | Description |
+|-------|-------|-------------|
+| -10 | Background Far | Sky/mountains layer (farthest back) |
+| -9 | Background Mid | Distant trees layer |
+| -8 | Background Near | Ground texture layer (nearest background) |
+| 1 | Character Shadows | Dynamic shadows for player and sidekicks |
+| 2 | Player & Sidekicks | Hero and sidekick characters |
+| 0 | Obstacles | Ground and flying obstacles (default depth) |
+| 5 | Rain Particles | Rain drop effects |
+| 6 | Splash Particles | Water splash effects |
+| 9 | Boss Shadow | Dynamic shadow for boss character |
+| 10 | Boss Character | Boss sprite (rendered above all obstacles) |
+
+**Key Design Decisions:**
+* Backgrounds use negative depth values to ensure they're always behind gameplay elements
+* Shadows render at depth 1, just above backgrounds but below characters (depth 2)
+* Boss and boss shadow use higher depth values (9-10) to render above obstacles
+* Rain effects use mid-range depth (5-6) to appear in front of backgrounds but behind characters
+
+#### **Dynamic Shadow System**
+
+The game features dynamic elliptical shadows that render beneath all characters on the ground plane, providing visual depth and helping players judge jump height.
+
+**Shadow Characteristics:**
+* **Shape:** Elliptical shadows drawn using Phaser graphics
+* **Position:** Always locked to ground level (GROUND_Y), regardless of character height
+* **Dynamic Sizing:** Shadows shrink as characters jump higher
+  * At ground level: 100% of base size
+  * At maximum jump height (~200px): 30% of base size
+  * Shrink factor formula: `max(0.3, 1 - (heightAboveGround / 400))`
+* **Dynamic Transparency:** Shadow alpha scales with height
+  * Base alpha: 0.3 (semi-transparent black)
+  * Alpha formula: `0.3 * shrinkFactor`
+  * Effect: Shadows become more transparent when characters are higher
+
+**Shadow Base Sizes:**
+* **Player Shadow:** 50px wide × 12px tall
+* **Sidekick Shadows:** 45px wide × 10px tall (slightly smaller than player)
+* **Boss Shadow:** 60px wide × 15px tall (larger to match boss size)
+
+**Technical Implementation:**
+```javascript
+updateShadow(shadowGraphics, characterX, characterY, baseWidth, baseHeight) {
+    const heightAboveGround = GROUND_Y - characterY;
+    const shrinkFactor = Math.max(0.3, 1 - (heightAboveGround / 400));
+    const shadowWidth = baseWidth * shrinkFactor;
+    const shadowHeight = baseHeight * shrinkFactor;
+    const shadowAlpha = 0.3 * shrinkFactor;
+    
+    shadowGraphics.clear();
+    shadowGraphics.fillStyle(0x000000, shadowAlpha);
+    shadowGraphics.fillEllipse(characterX, GROUND_Y, shadowWidth, shadowHeight);
+}
+```
+
+**Benefits:**
+* Provides visual feedback for jump height and landing position
+* Enhances depth perception in the 2D game space
+* Creates more polished, professional appearance
+* Helps players time jumps and landings more accurately
+
+### **4.6. Progressive Zoom & Camera System**
 
 #### **Dynamic Camera Zoom**
 The game features a progressive zoom system that creates increasing tension as the player advances:
@@ -157,7 +223,7 @@ The combined effect of:
 
 Creates a dramatic "collision course" feeling where the player appears to be catching up to the boss while the view becomes more intense and focused.
 
-### **4.6. Scoring & Speed**
+### **4.7. Scoring & Speed**
 
 * The score starts at 0 and increases over time (delta * 0.01) as long as the game is running.
 * The gameSpeed starts at `INITIAL_GAME_SPEED = 8` and increases based on score.
@@ -165,7 +231,7 @@ Creates a dramatic "collision course" feeling where the player appears to be cat
 * Speed increment: `0.005` per score point
 * Effect: Game progressively becomes harder as obstacles move faster and spawn more frequently.
 
-### **4.7. Game States**
+### **4.8. Game States**
 
 The game will be managed by a simple state machine. The primary states will be:
 
@@ -175,7 +241,7 @@ The game will be managed by a simple state machine. The primary states will be:
 * GAME\_OVER: Triggered by a collision. The game loop stops.  
 * CREDITS: A special state entered from GAME\_OVER *only if* score \> CREDIT\_THRESHOLD.
 
-### **4.8. Collision Detection (Updated)**
+### **4.9. Collision Detection (Updated)**
 
 * We will use **Composite AABB (Compound Hitboxes)**. This provides a balance between performance and accuracy, ideal for convoluted shapes.  
 * The **Player** will be defined by a single bounding box (a hitbox).  
@@ -184,7 +250,7 @@ The game will be managed by a simple state machine. The primary states will be:
 * The core AABB check for two rectangles ( a and b, each with x, y, width, height) remains simple and fast:  
   return a.x \< b.x \+ b.width && a.x \+ a.width \> b.x && a.y \< b.y \+ b.height && a.y \+ a.height \> b.y;
 
-### **4.9. Credits Screen**
+### **4.10. Credits Screen**
 
 * A constant, CREDIT\_THRESHOLD (e.g., 1000 points), will be defined.  
 * When the state changes to GAME\_OVER, the game will check: if (score \> CREDIT\_THRESHOLD).  

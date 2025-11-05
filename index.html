@@ -295,16 +295,19 @@
                 this.backgroundFar = this.add.tileSprite(0, 0, GAME_WIDTH, GAME_HEIGHT, ASSETS.BACKGROUND_FAR.key)
                     .setOrigin(0, 0)
                     .setScrollFactor(0)
-                    .setAlpha(0.8); // Slightly transparent for depth
+                    .setAlpha(0.8) // Slightly transparent for depth
+                    .setDepth(-10); // Farthest back
                 
                 this.backgroundMid = this.add.tileSprite(0, 0, GAME_WIDTH, GAME_HEIGHT, ASSETS.BACKGROUND_MID.key)
                     .setOrigin(0, 0)
                     .setScrollFactor(0)
-                    .setAlpha(0.9);
+                    .setAlpha(0.9)
+                    .setDepth(-9); // Middle background
                 
                 this.backgroundNear = this.add.tileSprite(0, 0, GAME_WIDTH, GAME_HEIGHT, ASSETS.BACKGROUND_NEAR.key)
                     .setOrigin(0, 0)
-                    .setScrollFactor(0);
+                    .setScrollFactor(0)
+                    .setDepth(-8); // Nearest background
 
                 // --- Invisible Ground ---
                 // We create a static, invisible physics body for the ground
@@ -313,9 +316,14 @@
                     .setVisible(false);
 
                 // --- Player (Section 4.1) ---
+                // Create player shadow (ellipse on the ground)
+                this.playerShadow = this.add.graphics();
+                this.playerShadow.setDepth(1); // Render above background, below player
+                
                 this.player = this.physics.add.sprite(PLAYER_INITIAL_X, GROUND_Y, ASSETS.PLAYER.key)
                     .setOrigin(0.5, 1) // <-- THE FIX: Anchor sprite to bottom-center
-                    .setCollideWorldBounds(true);
+                    .setCollideWorldBounds(true)
+                    .setDepth(2); // Render above shadow
                 
                 // Set the player's hitbox to be slightly smaller than the sprite
                 // 60x80 sprite -> 50x70 body. We offset Y by 10 to place body at the bottom.
@@ -330,6 +338,10 @@
                 const sidekickDelays = [150, 300]; // Delays in milliseconds
                 
                 for (let i = 0; i < 2; i++) {
+                    // Create sidekick shadow
+                    const sidekickShadow = this.add.graphics();
+                    sidekickShadow.setDepth(1); // Render above background, below sidekick
+                    
                     // Use regular sprites (not physics sprites) since they just mirror visually
                     const sidekick = this.add.sprite(
                         PLAYER_INITIAL_X + sidekickOffsets[i], 
@@ -339,10 +351,11 @@
                         .setOrigin(0.5, 1)
                         .setScale(0.90) // Slightly smaller than hero
                         .setAlpha(0.90) // Slightly transparent to distinguish from hero
-                        //.setDepth(-1); // Render behind hero
+                        .setDepth(2); // Render above shadow
                     
                     this.sidekicks.push({
                         sprite: sidekick,
+                        shadow: sidekickShadow,
                         delay: sidekickDelays[i],
                         isDucking: false,
                         isJumping: false,
@@ -355,6 +368,11 @@
                 // --- Boss Character (starts on right side, moves left) ---
                 const bossX = BOSS_INITIAL_X; // Starting position on right side
                 const bossY = GROUND_Y; // Standing on ground
+                
+                // Create boss shadow
+                this.bossShadow = this.add.graphics();
+                this.bossShadow.setDepth(9); // Render below boss but above obstacles
+                
                 this.boss = this.add.sprite(bossX, bossY, ASSETS.BOSS.key)
                     .setOrigin(0.5, 1) // Anchor to bottom-center
                     .setDepth(10); // Render above obstacles
@@ -654,6 +672,26 @@
                 return false;
             }
 
+            updateShadow(shadowGraphics, characterX, characterY, baseWidth, baseHeight) {
+                // Calculate how high the character is above the ground
+                const heightAboveGround = GROUND_Y - characterY;
+                
+                // Shadow shrinks as character jumps higher
+                // At ground level: full size, at max jump height (~200px): 30% size
+                const shrinkFactor = Math.max(0.3, 1 - (heightAboveGround / 400));
+                
+                const shadowWidth = baseWidth * shrinkFactor;
+                const shadowHeight = baseHeight * shrinkFactor;
+                
+                // Shadow also becomes more transparent when character is higher
+                const shadowAlpha = 0.3 * shrinkFactor;
+                
+                // Clear and redraw shadow
+                shadowGraphics.clear();
+                shadowGraphics.fillStyle(0x000000, shadowAlpha);
+                shadowGraphics.fillEllipse(characterX, GROUND_Y, shadowWidth, shadowHeight);
+            }
+
             update(time, delta) {
                 if (this.isGameOver || this.physics.world.isPaused) {
                     return;
@@ -685,6 +723,9 @@
                 const playerProgressRatio = Math.min(1, this.score * PLAYER_MOVEMENT_SPEED); // 0 to 1 over time
                 const playerTargetX = PLAYER_INITIAL_X + (PLAYER_TARGET_X - PLAYER_INITIAL_X) * playerProgressRatio;
                 this.player.x = playerTargetX;
+                
+                // --- Update Player Shadow ---
+                this.updateShadow(this.playerShadow, this.player.x, this.player.y, 50, 12);
                 
                 // --- Update Sidekicks ---
                 // Process action queue for each sidekick
@@ -731,6 +772,9 @@
                             }
                         }
                     });
+                    
+                    // Update sidekick shadow
+                    this.updateShadow(sidekick.shadow, sidekick.sprite.x, sidekick.sprite.y, 45, 10);
                 });
                 
                 // Clean up old actions (older than 1 second)
@@ -742,6 +786,9 @@
                 const bossProgressRatio = Math.min(1, this.score * BOSS_MOVEMENT_SPEED); // 0 to 1 over time
                 const bossTargetX = BOSS_INITIAL_X - (BOSS_INITIAL_X - BOSS_TARGET_X) * bossProgressRatio;
                 this.boss.x = bossTargetX;
+                
+                // --- Update Boss Shadow ---
+                this.updateShadow(this.bossShadow, this.boss.x, GROUND_Y, 60, 15);
 
                 // Adjust camera to keep player and boss on opposite sides of screen
                 // As we zoom in, we need to pan the camera to maintain framing
