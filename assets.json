@@ -1,0 +1,86 @@
+{
+  "player": {
+    "key": "player",
+    "url": "https://placehold.co/60x80/fde047/333?text=HERO",
+    "hitbox": {
+      "width": 50,
+      "height": 70,
+      "offsetX": 5,
+      "offsetY": 10
+    }
+  },
+  "player_duck": {
+    "key": "player_duck",
+    "url": "https://placehold.co/60x50/fde047/333?text=HERO+DUCK",
+    "hitbox": {
+      "width": 50,
+      "height": 40,
+      "offsetX": 5,
+      "offsetY": 10
+    }
+  },
+  "sidekick": {
+    "key": "sidekick",
+    "url": "https://placehold.co/60x80/a78bfa/333?text=SIDE",
+    "hitbox": null
+  },
+  "sidekick_duck": {
+    "key": "sidekick_duck",
+    "url": "https://placehold.co/60x50/a78bfa/333?text=SIDE+DUCK",
+    "hitbox": null
+  },
+  "background_far": {
+    "key": "background_far",
+    "url": "https://placehold.co/1200x600/0ea5e9/FFF?text=SKY+MOUNTAINS",
+    "hitbox": null
+  },
+  "background_mid": {
+    "key": "background_mid",
+    "url": "https://placehold.co/1200x600/14b8a6/FFF?text=DISTANT+TREES",
+    "hitbox": null
+  },
+  "background_near": {
+    "key": "background_near",
+    "url": "https://placehold.co/1200x600/22c55e/FFF?text=GROUND+LAYER",
+    "hitbox": null
+  },
+  "obstacle_small": {
+    "key": "obstacle_small",
+    "url": "https://placehold.co/40x80/ef4444/FFF?text=BRICK",
+    "hitbox": {
+      "width": 35,
+      "height": 75
+    }
+  },
+  "obstacle_large": {
+    "key": "obstacle_large",
+    "url": "https://placehold.co/120x60/3b82f6/FFF?text=WALL",
+    "hitbox": {
+      "width": 115,
+      "height": 55
+    }
+  },
+  "obstacle_flying": {
+    "key": "obstacle_flying",
+    "url": "https://placehold.co/70x150/eab308/FFF?text=FLYER",
+    "hitbox": {
+      "width": 70,
+      "height": 150
+    }
+  },
+  "boss": {
+    "key": "boss",
+    "url": "https://placehold.co/120x180/8b5cf6/FFF?text=BOSS",
+    "hitbox": null
+  },
+  "boss_throw": {
+    "key": "boss_throw",
+    "url": "https://placehold.co/120x180/a855f7/FFF?text=THROW",
+    "hitbox": null
+  },
+  "boss_kick": {
+    "key": "boss_kick",
+    "url": "https://placehold.co/120x180/c084fc/FFF?text=KICK",
+    "hitbox": null
+  }
+}

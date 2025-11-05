@@ -111,85 +111,14 @@
         const BOSS_ANIMATION_DURATION = 300; // How long boss animation plays (ms)
         const BOSS_ATTACK_DELAY = 200; // Delay between animation start and obstacle spawn (ms)
 
-        // --- 2. ASSET DEFINITIONS (Placeholders) ---
+        // --- 2. ASSET DEFINITIONS (Loaded from assets.json) ---
+        // This will be populated by BootScene after loading assets.json
+        let ASSETS = null;
 
-        const ASSETS = {
-            PLAYER: { 
-                key: 'player', 
-                url: 'https://placehold.co/60x80/fde047/333?text=HERO' 
-            },
-            PLAYER_DUCK: {
-                key: 'player_duck',
-                url: 'https://placehold.co/60x50/fde047/333?text=HERO+DUCK'
-            },
-            SIDEKICK: {
-                key: 'sidekick',
-                url: 'https://placehold.co/60x80/a78bfa/333?text=SIDE'
-            },
-            SIDEKICK_DUCK: {
-                key: 'sidekick_duck',
-                url: 'https://placehold.co/60x50/a78bfa/333?text=SIDE+DUCK'
-            },
-            BACKGROUND_FAR: { 
-                key: 'background_far', 
-                url: 'https://placehold.co/1200x600/0ea5e9/FFF?text=SKY+MOUNTAINS' 
-            },
-            BACKGROUND_MID: { 
-                key: 'background_mid', 
-                url: 'https://placehold.co/1200x600/14b8a6/FFF?text=DISTANT+TREES' 
-            },
-            BACKGROUND_NEAR: { 
-                key: 'background_near', 
-                url: 'https://placehold.co/1200x600/22c55e/FFF?text=GROUND+LAYER' 
-            },
-            OBSTACLE_SMALL: { 
-                key: 'obstacle_small', 
-                url: 'https://placehold.co/40x80/ef4444/FFF?text=BRICK' 
-            },
-            OBSTACLE_LARGE: { 
-                key: 'obstacle_large', 
-                url: 'https://placehold.co/120x60/3b82f6/FFF?text=WALL' 
-            },
-            OBSTACLE_FLYING: {
-                key: 'obstacle_flying',
-                url: 'https://placehold.co/70x150/eab308/FFF?text=FLYER'
-            },
-            BOSS: {
-                key: 'boss',
-                url: 'https://placehold.co/120x180/8b5cf6/FFF?text=BOSS'
-            },
-            BOSS_THROW: {
-                key: 'boss_throw',
-                url: 'https://placehold.co/120x180/a855f7/FFF?text=THROW'
-            },
-            BOSS_KICK: {
-                key: 'boss_kick',
-                url: 'https://placehold.co/120x180/c084fc/FFF?text=KICK'
-            }
-        };
-
-        // --- 3. OBSTACLE CONFIGURATIONS (Implements Section 4.6) ---
-        
-        /**
-         * This configures our obstacles. We now have two types.
-         */
-        const GROUND_OBSTACLE_CONFIGS = [
-            {
-                key: ASSETS.OBSTACLE_SMALL.key,
-                hitbox: { width: 35, height: 75 }
-            },
-            {
-                key: ASSETS.OBSTACLE_LARGE.key,
-                hitbox: { width: 115, height: 55 }
-            }
-        ];
-
-        const FLYING_OBSTACLE_CONFIGS = [
-            {
-                key: ASSETS.OBSTACLE_FLYING.key,
-                hitbox: { width: 70, height: 150 }
-            }
-        ];
+        // --- 3. OBSTACLE CONFIGURATIONS (Loaded from assets.json) ---
+        // These will be populated by BootScene after loading assets.json
+        let GROUND_OBSTACLE_CONFIGS = [];
+        let FLYING_OBSTACLE_CONFIGS = [];
 
         // --- 4. GAME SCENES (Implements Section 4.5: Game States) ---
 
@@ -205,7 +134,61 @@
 
             preload() {
                 console.log('BootScene: preload');
-                // Load placeholder images
+                
+                // Show a simple loading text
+                const loadingStyle = { font: "32px Arial", fill: "#FFFFFF" };
+                this.loadingText = this.add.text(GAME_WIDTH / 2, GAME_HEIGHT / 2, "LOADING...", loadingStyle).setOrigin(0.5);
+
+                // Load assets.json first
+                this.load.json('assetsData', 'assets.json');
+                
+                // Load the 'Luckiest Guy' font using the WebFontLoader
+                // this.loadWebFont(); // <-- MOVED: This was called too early, creating a race condition.
+            }
+
+            create() {
+                console.log('BootScene: create (assets.json loaded)');
+                
+                // Get the loaded assets data
+                const assetsData = this.cache.json.get('assetsData');
+                
+                // Convert to uppercase keys for backward compatibility
+                ASSETS = {
+                    PLAYER: assetsData.player,
+                    PLAYER_DUCK: assetsData.player_duck,
+                    SIDEKICK: assetsData.sidekick,
+                    SIDEKICK_DUCK: assetsData.sidekick_duck,
+                    BACKGROUND_FAR: assetsData.background_far,
+                    BACKGROUND_MID: assetsData.background_mid,
+                    BACKGROUND_NEAR: assetsData.background_near,
+                    OBSTACLE_SMALL: assetsData.obstacle_small,
+                    OBSTACLE_LARGE: assetsData.obstacle_large,
+                    OBSTACLE_FLYING: assetsData.obstacle_flying,
+                    BOSS: assetsData.boss,
+                    BOSS_THROW: assetsData.boss_throw,
+                    BOSS_KICK: assetsData.boss_kick
+                };
+                
+                // Populate obstacle configurations from assets data
+                GROUND_OBSTACLE_CONFIGS = [
+                    {
+                        key: ASSETS.OBSTACLE_SMALL.key,
+                        hitbox: ASSETS.OBSTACLE_SMALL.hitbox
+                    },
+                    {
+                        key: ASSETS.OBSTACLE_LARGE.key,
+                        hitbox: ASSETS.OBSTACLE_LARGE.hitbox
+                    }
+                ];
+                
+                FLYING_OBSTACLE_CONFIGS = [
+                    {
+                        key: ASSETS.OBSTACLE_FLYING.key,
+                        hitbox: ASSETS.OBSTACLE_FLYING.hitbox
+                    }
+                ];
+                
+                // Now load all the images
                 this.load.image(ASSETS.PLAYER.key, ASSETS.PLAYER.url);
                 this.load.image(ASSETS.PLAYER_DUCK.key, ASSETS.PLAYER_DUCK.url);
                 this.load.image(ASSETS.SIDEKICK.key, ASSETS.SIDEKICK.url);
@@ -219,20 +202,15 @@
                 this.load.image(ASSETS.BOSS.key, ASSETS.BOSS.url);
                 this.load.image(ASSETS.BOSS_THROW.key, ASSETS.BOSS_THROW.url);
                 this.load.image(ASSETS.BOSS_KICK.key, ASSETS.BOSS_KICK.url);
-
-                // Show a simple loading text
-                const loadingStyle = { font: "32px Arial", fill: "#FFFFFF" };
-                this.loadingText = this.add.text(GAME_WIDTH / 2, GAME_HEIGHT / 2, "LOADING...", loadingStyle).setOrigin(0.5);
-
-                // Load the 'Luckiest Guy' font using the WebFontLoader
-                // this.loadWebFont(); // <-- MOVED: This was called too early, creating a race condition.
-            }
-
-            create() {
-                console.log('BootScene: create (Images loaded)');
-                // All assets from preload() are finished.
-                // Now, we load the font, and *its* callback will start the game.
-                this.loadWebFont();
+                
+                // Start loading the images
+                this.load.once('complete', () => {
+                    console.log('BootScene: All images loaded');
+                    // Now load the font
+                    this.loadWebFont();
+                });
+                
+                this.load.start();
             }
 
             loadWebFont() {
@@ -329,9 +307,10 @@
                     .setCollideWorldBounds(true)
                     .setDepth(2); // Render above shadow
                 
-                // Set the player's hitbox to be slightly smaller than the sprite
-                // 60x80 sprite -> 50x70 body. We offset Y by 10 to place body at the bottom.
-                this.player.body.setSize(50, 70).setOffset(5, 10);
+                // Set the player's hitbox from assets.json
+                const playerHitbox = ASSETS.PLAYER.hitbox;
+                this.player.body.setSize(playerHitbox.width, playerHitbox.height)
+                    .setOffset(playerHitbox.offsetX, playerHitbox.offsetY);
 
                 // Add collider between player and ground
                 this.physics.add.collider(this.player, this.ground);
@@ -477,11 +456,10 @@
                 this.playerIsDucking = true;
                 this.player.setTexture(ASSETS.PLAYER_DUCK.key);
 
-                // New hitbox: 60x50 sprite -> 50x40 body.
-                // We offset Y by 10 (sprite height 50 - body height 40)
-                // to keep the body aligned with the bottom of the sprite.
-                // Note: The physics body is aligned to the *new* sprite.
-                this.player.body.setSize(50, 40).setOffset(5, 10);
+                // Set hitbox from assets.json
+                const duckHitbox = ASSETS.PLAYER_DUCK.hitbox;
+                this.player.body.setSize(duckHitbox.width, duckHitbox.height)
+                    .setOffset(duckHitbox.offsetX, duckHitbox.offsetY);
                 
                 // Record action for sidekicks
                 this.actionQueue.push({
@@ -496,8 +474,10 @@
                 this.playerIsDucking = false;
                 this.player.setTexture(ASSETS.PLAYER.key);
                 
-                // Restore original hitbox
-                this.player.body.setSize(50, 70).setOffset(5, 10);
+                // Restore original hitbox from assets.json
+                const playerHitbox = ASSETS.PLAYER.hitbox;
+                this.player.body.setSize(playerHitbox.width, playerHitbox.height)
+                    .setOffset(playerHitbox.offsetX, playerHitbox.offsetY);
                 
                 // Record action for sidekicks
                 this.actionQueue.push({
